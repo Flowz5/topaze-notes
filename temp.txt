@@ -8,3 +8,5 @@ To-Do Lists interactives
 Recherche Globale (Cmd+K ou Ctrl+K)
 Recherche Full-Text
 Avatars de présence
+
+ajoute icone info a gauche des parametre infos utilisation

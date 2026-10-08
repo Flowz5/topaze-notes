@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
-  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Download, FolderPlus
+  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Download, FolderPlus, Info, Search
 } from 'lucide-react';
 import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
@@ -101,6 +101,9 @@ export default function KbView() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [globalSearchInput, setGlobalSearchInput] = useState('');
   const [renameInput, setRenameInput] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [isTagsOpen, setIsTagsOpen] = useState(true);
@@ -335,6 +338,18 @@ export default function KbView() {
     if (baseData) setRenameInput(baseData.name);
     setIsSettingsModalOpen(true);
   };
+
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchModalOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleRename = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -598,6 +613,22 @@ export default function KbView() {
             </button>
             <button 
               className="logout-btn" 
+              style={{ padding: '0.5rem', borderRadius: '50%', marginRight: '0.5rem' }}
+              onClick={() => setIsSearchModalOpen(true)}
+              title="Rechercher (Cmd+K)"
+            >
+              <Search size={18} />
+            </button>
+            <button 
+              className="logout-btn" 
+              style={{ padding: '0.5rem', borderRadius: '50%', marginRight: '0.5rem' }}
+              onClick={() => setIsHelpModalOpen(true)}
+              title="Aide & Raccourcis"
+            >
+              <Info size={18} />
+            </button>
+            <button 
+              className="logout-btn" 
               style={{ padding: '0.5rem', borderRadius: '50%' }}
               onClick={openSettings}
             >
@@ -759,6 +790,105 @@ export default function KbView() {
             <div className="modal-actions" style={{ marginTop: '2rem' }}>
               <button className="btn-cancel" onClick={() => setIsShareModalOpen(false)}>
                 Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      
+      
+      {/* MODAL RECHERCHE GLOBALE */}
+      {isSearchModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsSearchModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', marginTop: '10vh', position: 'absolute', top: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-hover)', borderRadius: '99px', padding: '0.5rem 1rem', marginBottom: '1rem' }}>
+              <Search size={20} color="var(--primary)" style={{ marginRight: '0.5rem' }} />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Rechercher une note par titre..."
+                value={globalSearchInput}
+                onChange={e => setGlobalSearchInput(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'white',
+                  width: '100%',
+                  outline: 'none',
+                  fontSize: '1.1rem'
+                }}
+              />
+            </div>
+            
+            <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {notes.filter(n => n.title.toLowerCase().includes(globalSearchInput.toLowerCase())).length > 0 ? (
+                notes.filter(n => n.title.toLowerCase().includes(globalSearchInput.toLowerCase())).map(note => (
+                  <div
+                    key={note.id}
+                    onClick={() => {
+                      setActiveNote(note.id);
+                      setIsSearchModalOpen(false);
+                      setGlobalSearchInput('');
+                    }}
+                    style={{
+                      padding: '1rem',
+                      background: 'var(--surface-hover)',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--primary)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+                  >
+                    <FileText size={18} />
+                    <span style={{ fontWeight: '500' }}>{note.title}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(255,255,255,0.5)' }}>
+                  Aucune note ne correspond à "{globalSearchInput}"
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL AIDE / INFO */}
+      {isHelpModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
+            <h3 className="modal-title">Bienvenue sur Topaze Notes 💎</h3>
+            <div style={{ color: 'rgba(255,255,255,0.8)', lineHeight: '1.6', fontSize: '0.95rem' }}>
+              <p style={{ marginBottom: '1rem' }}>Voici quelques astuces pour utiliser l'application comme un pro :</p>
+              
+              <ul style={{ listStyleType: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
+                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>🔗 Liens Bidirectionnels (Backlinks)</strong>
+                  Tape <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>@</kbd> n'importe où dans tes notes pour faire le lien vers une autre note. Le graphe se mettra à jour automatiquement !
+                </li>
+                <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
+                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>🔍 Recherche Globale</strong>
+                  Appuie sur <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>Cmd + K</kbd> ou <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>Ctrl + K</kbd> depuis n'importe où pour ouvrir la barre de recherche rapide et naviguer entre tes notes.
+                </li>
+                <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
+                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>✅ To-Do Lists</strong>
+                  Tape <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>[ ]</kbd> suivi d'un espace pour créer une liste de tâches interactive. Tu peux aussi utiliser le menu flottant.
+                </li>
+                <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
+                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>📂 Organisation</strong>
+                  Tu peux glisser et déposer (Drag & Drop) tes notes et tes dossiers dans la barre latérale pour tout organiser à l'infini.
+                </li>
+              </ul>
+            </div>
+            
+            <div className="modal-actions" style={{ marginTop: '2rem' }}>
+              <button className="btn-cancel" onClick={() => setIsHelpModalOpen(false)}>
+                J'ai compris !
               </button>
             </div>
           </div>
