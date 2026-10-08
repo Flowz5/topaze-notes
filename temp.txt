@@ -9,4 +9,4 @@ Recherche Globale (Cmd+K ou Ctrl+K)
 Recherche Full-Text
 Avatars de présence
 
-ajoute icone info a gauche des parametre infos utilisation
+ajouter possiblité pour l'admin de voir qui a ajouté quoi

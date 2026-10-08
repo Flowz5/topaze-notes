@@ -862,25 +862,25 @@ export default function KbView() {
       {isHelpModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '600px' }}>
-            <h3 className="modal-title">Bienvenue sur Topaze Notes 💎</h3>
+            <h3 className="modal-title">Bienvenue sur Topaze Notes</h3>
             <div style={{ color: 'rgba(255,255,255,0.8)', lineHeight: '1.6', fontSize: '0.95rem' }}>
               <p style={{ marginBottom: '1rem' }}>Voici quelques astuces pour utiliser l'application comme un pro :</p>
               
               <ul style={{ listStyleType: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
-                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>🔗 Liens Bidirectionnels (Backlinks)</strong>
+                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Liens Bidirectionnels (Backlinks)</strong>
                   Tape <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>@</kbd> n'importe où dans tes notes pour faire le lien vers une autre note. Le graphe se mettra à jour automatiquement !
                 </li>
                 <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
-                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>🔍 Recherche Globale</strong>
+                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Recherche Globale</strong>
                   Appuie sur <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>Cmd + K</kbd> ou <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>Ctrl + K</kbd> depuis n'importe où pour ouvrir la barre de recherche rapide et naviguer entre tes notes.
                 </li>
                 <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
-                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>✅ To-Do Lists</strong>
-                  Tape <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>[ ]</kbd> suivi d'un espace pour créer une liste de tâches interactive. Tu peux aussi utiliser le menu flottant.
+                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Syntaxe Markdown</strong>
+                  L'éditeur supporte la syntaxe Markdown standard : <b>gras</b> avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>**</kbd>, <i>italique</i> avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>*</kbd>, titres avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>#</kbd>, blocs de code avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>```</kbd>, et listes de tâches avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>[ ]</kbd>.
                 </li>
                 <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
-                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>📂 Organisation</strong>
+                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Organisation</strong>
                   Tu peux glisser et déposer (Drag & Drop) tes notes et tes dossiers dans la barre latérale pour tout organiser à l'infini.
                 </li>
               </ul>
