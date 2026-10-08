@@ -119,6 +119,26 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange }: any) {
     }
   }, [editor, initialYjsState, initialContent]);
 
+  // Fallback de synchronisation Firestore !
+  // Si le WebRTC (peer-to-peer) échoue à cause d'un pare-feu, on utilise Firestore
+  // comme serveur de secours. Dès que Firestore m'envoie un nouvel état Yjs (sauvegardé 
+  // par mon collègue), je l'applique directement sur mon document !
+  useEffect(() => {
+    if (initialYjsState && ydoc) {
+      try {
+        const binaryString = atob(initialYjsState);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        Y.applyUpdate(ydoc, bytes);
+      } catch (e) {
+        console.error("Erreur lors de l'application de la mise à jour Firestore", e);
+      }
+    }
+  }, [initialYjsState, ydoc]);
+
   return (
     <div className="tiptap-wrapper">
       <EditorContent editor={editor} />
