@@ -4,11 +4,22 @@ import { db, auth } from '../firebase';
 import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
-  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2
+  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Download
 } from 'lucide-react';
 import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
 import './KbView.css';
+
+interface Note {
+  id: string;
+  title: string;
+  folderId: string | null;
+}
+
+interface FolderType {
+  id: string;
+  name: string;
+}
 
 export default function KbView() {
   const { id } = useParams();
@@ -16,47 +27,57 @@ export default function KbView() {
   
   const [baseData, setBaseData] = useState<{name: string, ownerId: string, members: string[]} | null>(null);
   
-  // Mock d'une arborescence pour la démo
+  // Mock Data
+  const [folders, setFolders] = useState<FolderType[]>([
+    { id: 'folder-1', name: 'Cours Magistraux' },
+    { id: 'folder-2', name: 'Projets Pratiques' }
+  ]);
+  
+  const [notes, setNotes] = useState<Note[]>([
+    { id: 'note-1', title: 'Introduction au réseau', folderId: 'folder-1' },
+    { id: 'note-2', title: 'Modèle OSI', folderId: 'folder-1' },
+    { id: 'note-3', title: 'Configuration Switch Cisco', folderId: 'folder-2' },
+    { id: 'note-4', title: 'Lexique réseau', folderId: null },
+  ]);
+
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
     'folder-1': true,
+    'folder-2': true,
   });
   const [activeNote, setActiveNote] = useState<string | null>(null);
 
-  // Markdown Editor State
-  const [markdownContent, setMarkdownContent] = useState<string>('---\ntitle: Nouvelle Note\ndate: 2026-10-08\ntags: []\n---\n\nCommence à écrire ta note ici...');
+  // Markdown & Properties State
+  const [markdownContent, setMarkdownContent] = useState<string>('Commence à écrire ta note ici...');
+  const [noteMeta, setNoteMeta] = useState({
+    title: 'Nouvelle Note',
+    date: new Date().toISOString().split('T')[0],
+    tags: ''
+  });
 
   // Graph View State
   const [showGraph, setShowGraph] = useState(false);
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
 
-  // Mock Graph Data
+  // Update mockGraphData based on state
   const mockGraphData = {
     nodes: [
-      { id: 'folder-1', name: 'Cours Magistraux', group: 'folder', val: 5 },
-      { id: 'note-1', name: 'Introduction au réseau', group: 'note', val: 3 },
-      { id: 'note-2', name: 'Modèle OSI', group: 'note', val: 3 },
-      { id: 'folder-2', name: 'Projets Pratiques', group: 'folder', val: 5 },
-      { id: 'note-3', name: 'Configuration Switch Cisco', group: 'note', val: 3 },
-      { id: 'note-4', name: 'Lexique réseau', group: 'note', val: 3 },
+      ...folders.map(f => ({ id: f.id, name: f.name, group: 'folder', val: 5 })),
+      ...notes.map(n => ({ id: n.id, name: n.title, group: 'note', val: 3 })),
       { id: 'tag-1', name: '#réseau', group: 'tag', val: 4 },
     ],
     links: [
-      { source: 'folder-1', target: 'note-1' },
-      { source: 'folder-1', target: 'note-2' },
-      { source: 'folder-2', target: 'note-3' },
-      { source: 'note-1', target: 'note-2' }, // Lien interne (Note 1 link to Note 2)
-      { source: 'note-3', target: 'note-1' }, // Lien interne
+      ...notes.filter(n => n.folderId).map(n => ({ source: n.folderId, target: n.id })),
+      { source: 'note-1', target: 'note-2' },
+      { source: 'note-3', target: 'note-1' },
       { source: 'tag-1', target: 'note-1' },
       { source: 'tag-1', target: 'note-4' },
     ]
   };
 
-  // Modal Partage
+  // Modals
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-
-  // Modal Paramètres
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [renameInput, setRenameInput] = useState('');
 
@@ -74,7 +95,6 @@ export default function KbView() {
           members: docSnap.data().members || []
         });
       } else {
-        // La base n'existe plus ou on n'a plus accès
         setBaseData(null);
       }
     }, (error) => {
@@ -93,44 +113,93 @@ export default function KbView() {
           });
         }
       };
-      
       updateDimensions();
       window.addEventListener('resize', updateDimensions);
       return () => window.removeEventListener('resize', updateDimensions);
     }
   }, [showGraph]);
 
+  // Update properties when active note changes
+  useEffect(() => {
+    if (activeNote) {
+      const note = notes.find(n => n.id === activeNote);
+      if (note) {
+        setNoteMeta(prev => ({ ...prev, title: note.title }));
+      }
+    }
+  }, [activeNote]);
+
   const toggleFolder = (folderId: string) => {
     setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
+  };
+
+  const handleDeleteNote = (noteId: string) => {
+    if (window.confirm('Supprimer cette note ?')) {
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+      if (activeNote === noteId) setActiveNote(null);
+    }
+  };
+
+  // Drag and Drop
+  const handleDragStart = (e: React.DragEvent, noteId: string) => {
+    e.dataTransfer.setData('noteId', noteId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Necessary to allow dropping
+  };
+
+  const handleDrop = (e: React.DragEvent, folderId: string | null) => {
+    e.preventDefault();
+    const noteId = e.dataTransfer.getData('noteId');
+    if (!noteId) return;
+
+    setNotes(prev => prev.map(n => 
+      n.id === noteId ? { ...n, folderId } : n
+    ));
+    
+    if (folderId) {
+      setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
+    }
+  };
+
+  const handleExport = () => {
+    if (!activeNote) return;
+    
+    // Construire le fichier markdown avec l'en-tête YAML
+    const yaml = `---\ntitle: ${noteMeta.title}\ndate: ${noteMeta.date}\ntags: [${noteMeta.tags}]\n---\n\n`;
+    const fullContent = yaml + markdownContent;
+    
+    const blob = new Blob([fullContent], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${noteMeta.title.replace(/\s+/g, '-').toLowerCase()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim() || !id || !isOwner) return;
-    
     try {
       const docRef = doc(db, 'knowledgeBases', id);
-      await updateDoc(docRef, {
-        members: arrayUnion(inviteEmail.trim().toLowerCase())
-      });
+      await updateDoc(docRef, { members: arrayUnion(inviteEmail.trim().toLowerCase()) });
       setInviteEmail('');
     } catch (err) {
-      console.error(err);
       alert("Erreur lors de l'invitation.");
     }
   };
 
   const handleRemoveMember = async (email: string) => {
     if (!id || !isOwner) return;
-    if (email === currentUser?.email) return; // Ne pas se virer soi-même
-    
+    if (email === currentUser?.email) return;
     try {
       const docRef = doc(db, 'knowledgeBases', id);
-      await updateDoc(docRef, {
-        members: arrayRemove(email)
-      });
+      await updateDoc(docRef, { members: arrayRemove(email) });
     } catch (err) {
-      console.error(err);
       alert("Erreur lors de la suppression.");
     }
   };
@@ -144,24 +213,20 @@ export default function KbView() {
     e.preventDefault();
     if (!id || !isOwner || !renameInput.trim()) return;
     try {
-      await updateDoc(doc(db, 'knowledgeBases', id), {
-        name: renameInput.trim()
-      });
+      await updateDoc(doc(db, 'knowledgeBases', id), { name: renameInput.trim() });
       setIsSettingsModalOpen(false);
     } catch (err) {
-      console.error(err);
       alert("Erreur lors du renommage.");
     }
   };
 
   const handleDeleteBase = async () => {
     if (!id || !isOwner) return;
-    if (window.confirm("Es-tu sûr de vouloir supprimer définitivement cette base ? Cette action est irréversible.")) {
+    if (window.confirm("Es-tu sûr de vouloir supprimer définitivement cette base ?")) {
       try {
         await deleteDoc(doc(db, 'knowledgeBases', id));
         navigate('/');
       } catch (err) {
-        console.error(err);
         alert("Erreur lors de la suppression.");
       }
     }
@@ -169,14 +234,11 @@ export default function KbView() {
 
   const handleLeaveBase = async () => {
     if (!id || !currentUser?.email) return;
-    if (window.confirm("Es-tu sûr de vouloir quitter cette base ? Tu devras être invité à nouveau pour y accéder.")) {
+    if (window.confirm("Es-tu sûr de vouloir quitter cette base ?")) {
       try {
-        await updateDoc(doc(db, 'knowledgeBases', id), {
-          members: arrayRemove(currentUser.email)
-        });
+        await updateDoc(doc(db, 'knowledgeBases', id), { members: arrayRemove(currentUser.email) });
         navigate('/');
       } catch (err) {
-        console.error(err);
         alert("Erreur en quittant la base.");
       }
     }
@@ -184,7 +246,6 @@ export default function KbView() {
 
   const baseName = baseData ? baseData.name : 'Chargement...';
 
-  // Si on a été supprimé de la base ou si elle est supprimée
   if (baseData === null) {
     return (
       <div className="kb-layout" style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '1rem' }}>
@@ -193,6 +254,8 @@ export default function KbView() {
       </div>
     );
   }
+
+  const rootNotes = notes.filter(n => n.folderId === null);
 
   return (
     <div className="kb-layout">
@@ -208,7 +271,12 @@ export default function KbView() {
           </div>
           
           <div className="kb-actions">
-            <button className="kb-action-btn">
+            <button className="kb-action-btn" onClick={() => {
+              const newNote = { id: `note-${Date.now()}`, title: 'Nouvelle Note', folderId: null };
+              setNotes([...notes, newNote]);
+              setActiveNote(newNote.id);
+              setShowGraph(false);
+            }}>
               <Plus size={16} />
               Nouvelle note
             </button>
@@ -224,75 +292,65 @@ export default function KbView() {
           </div>
         </div>
 
-        <div className="kb-sidebar-content">
-          {/* Dossier 1 */}
-          <div className="folder-item" onClick={() => toggleFolder('folder-1')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {expandedFolders['folder-1'] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              <Folder size={16} fill="rgba(255,255,255,0.2)" />
-              <span>Cours Magistraux</span>
-            </div>
-          </div>
-          {expandedFolders['folder-1'] && (
-            <>
-              <div 
-                className={`note-item ${activeNote === 'note-1' && !showGraph ? 'active' : ''}`}
-                onClick={() => { setActiveNote('note-1'); setShowGraph(false); }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <FileText size={16} />
-                  <span>Introduction au réseau</span>
+        <div 
+          className="kb-sidebar-content"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, null)} // Drop to root
+        >
+          {folders.map(folder => {
+            const folderNotes = notes.filter(n => n.folderId === folder.id);
+            return (
+              <div key={folder.id}>
+                <div 
+                  className="folder-item" 
+                  onClick={() => toggleFolder(folder.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => {
+                    e.stopPropagation(); // Prevent dropping to root
+                    handleDrop(e, folder.id);
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {expandedFolders[folder.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <Folder size={16} fill="rgba(255,255,255,0.2)" />
+                    <span>{folder.name}</span>
+                  </div>
                 </div>
-                <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); alert('Supprimer'); }}><Trash2 size={14} /></button>
+                {expandedFolders[folder.id] && folderNotes.map(note => (
+                  <div 
+                    key={note.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, note.id)}
+                    className={`note-item ${activeNote === note.id && !showGraph ? 'active' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <FileText size={16} />
+                      <span>{note.title}</span>
+                    </div>
+                    <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}><Trash2 size={14} /></button>
+                  </div>
+                ))}
               </div>
-              <div 
-                className={`note-item ${activeNote === 'note-2' && !showGraph ? 'active' : ''}`}
-                onClick={() => { setActiveNote('note-2'); setShowGraph(false); }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <FileText size={16} />
-                  <span>Modèle OSI</span>
-                </div>
-                <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); alert('Supprimer'); }}><Trash2 size={14} /></button>
-              </div>
-            </>
-          )}
+            )
+          })}
 
-          {/* Dossier 2 */}
-          <div className="folder-item" onClick={() => toggleFolder('folder-2')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {expandedFolders['folder-2'] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              <Folder size={16} fill="rgba(255,255,255,0.2)" />
-              <span>Projets Pratiques</span>
-            </div>
-          </div>
-          {expandedFolders['folder-2'] && (
-            <>
-              <div 
-                className={`note-item ${activeNote === 'note-3' && !showGraph ? 'active' : ''}`}
-                onClick={() => { setActiveNote('note-3'); setShowGraph(false); }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <FileText size={16} />
-                  <span>Configuration Switch Cisco</span>
-                </div>
-                <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); alert('Supprimer'); }}><Trash2 size={14} /></button>
+          {rootNotes.map(note => (
+            <div 
+              key={note.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, note.id)}
+              className={`folder-item ${activeNote === note.id && !showGraph ? 'active' : ''}`} 
+              style={{ paddingLeft: '1.25rem', backgroundColor: activeNote === note.id && !showGraph ? 'rgba(255,255,255,0.1)' : '' }}
+              onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={16} />
+                <span>{note.title}</span>
               </div>
-            </>
-          )}
-
-          {/* Note sans dossier */}
-          <div 
-            className={`folder-item ${activeNote === 'note-4' && !showGraph ? 'active' : ''}`} 
-            style={{ paddingLeft: '1.25rem', backgroundColor: activeNote === 'note-4' && !showGraph ? 'rgba(255,255,255,0.1)' : '' }}
-            onClick={() => { setActiveNote('note-4'); setShowGraph(false); }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={16} />
-              <span>Lexique réseau</span>
+              <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}><Trash2 size={14} /></button>
             </div>
-            <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); alert('Supprimer'); }}><Trash2 size={14} /></button>
-          </div>
+          ))}
         </div>
       </aside>
 
@@ -305,15 +363,19 @@ export default function KbView() {
             ) : activeNote ? (
               <input 
                 type="text" 
-                value="Titre de la note" 
-                readOnly
+                value={noteMeta.title} 
+                onChange={(e) => {
+                  setNoteMeta({...noteMeta, title: e.target.value});
+                  setNotes(notes.map(n => n.id === activeNote ? { ...n, title: e.target.value } : n));
+                }}
                 style={{ 
                   fontSize: '1.5rem', 
                   fontWeight: 'bold', 
                   background: 'transparent', 
                   border: 'none', 
                   color: 'white',
-                  outline: 'none'
+                  outline: 'none',
+                  width: '100%'
                 }} 
               />
             ) : (
@@ -321,6 +383,16 @@ export default function KbView() {
             )}
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
+            {activeNote && !showGraph && (
+              <button 
+                className="export-btn" 
+                onClick={handleExport}
+                title="Exporter en Markdown"
+              >
+                <Download size={16} />
+                Exporter
+              </button>
+            )}
             <button 
               className="logout-btn" 
               style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
@@ -348,9 +420,9 @@ export default function KbView() {
                 graphData={mockGraphData}
                 nodeLabel="name"
                 nodeColor={(node: any) => {
-                  if (node.group === 'folder') return '#ffffff'; // Blanc pour les dossiers
-                  if (node.group === 'tag') return 'rgba(255, 255, 255, 0.3)'; // Blanc très transparent pour les tags
-                  return '#5eead4'; // Vert menthe doux pour les notes
+                  if (node.group === 'folder') return '#ffffff';
+                  if (node.group === 'tag') return 'rgba(255, 255, 255, 0.3)';
+                  return '#5eead4';
                 }}
                 linkColor={() => 'rgba(255, 255, 255, 0.15)'}
                 backgroundColor="transparent"
@@ -363,10 +435,33 @@ export default function KbView() {
               />
             </div>
           ) : activeNote ? (
-            <TiptapEditor
-              content={markdownContent}
-              onChange={(val) => setMarkdownContent(val)}
-            />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div className="kb-note-properties">
+                <div className="prop-row">
+                  <span className="prop-key">date:</span>
+                  <input 
+                    type="date" 
+                    className="prop-val" 
+                    value={noteMeta.date} 
+                    onChange={e => setNoteMeta({...noteMeta, date: e.target.value})}
+                  />
+                </div>
+                <div className="prop-row">
+                  <span className="prop-key">tags:</span>
+                  <input 
+                    type="text" 
+                    className="prop-val" 
+                    placeholder="tag1, tag2..."
+                    value={noteMeta.tags} 
+                    onChange={e => setNoteMeta({...noteMeta, tags: e.target.value})}
+                  />
+                </div>
+              </div>
+              <TiptapEditor
+                content={markdownContent}
+                onChange={(val) => setMarkdownContent(val)}
+              />
+            </div>
           ) : (
             <div className="kb-empty-state">
               <Network size={64} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
