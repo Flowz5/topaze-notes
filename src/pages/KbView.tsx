@@ -140,7 +140,8 @@ export default function KbView() {
       const foldersData = snapshot.docs.map(doc => ({
         id: doc.id,
         name: doc.data().name,
-        parentId: doc.data().parentId || null
+        parentId: doc.data().parentId || null,
+        authorEmail: doc.data().authorEmail
       })) as FolderType[];
       setFolders(foldersData);
       
