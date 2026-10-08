@@ -30,6 +30,7 @@ interface FolderType {
   id: string;
   name: string;
   parentId?: string | null;
+  authorEmail?: string;
 }
 
 export default function KbView() {
@@ -198,7 +199,8 @@ export default function KbView() {
         await addDoc(collection(db, `knowledgeBases/${id}/folders`), {
           name: name.trim(),
           parentId,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          authorEmail: currentUser?.email || 'Inconnu'
         });
         if (parentId) {
           setExpandedFolders(prev => ({ ...prev, [parentId]: true }));
