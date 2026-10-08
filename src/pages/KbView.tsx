@@ -22,6 +22,8 @@ interface Note {
   yjsState?: string;
   date: string;
   tags: string;
+  updatedAt?: Date;
+  mentions?: string[];
 }
 
 interface FolderType {
@@ -72,9 +74,7 @@ export default function KbView() {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
 
-  const escapeRegExp = (string: string) => {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  };
+
 
   const mockGraphData = {
     nodes: [
@@ -89,12 +89,7 @@ export default function KbView() {
       ),
       // Backlinks graph links (with exact match to avoid substring issues like Note 1 vs Note 11)
       ...notes.flatMap(n => {
-        const mentions = notes.filter(other => {
-          if (n.id === other.id || !n.content) return false;
-          // Look for @Title followed by non-word char or end of string
-          const regex = new RegExp(`@${escapeRegExp(other.title)}(?![\\wÀ-ÿ])`, 'i');
-          return regex.test(n.content);
-        });
+        const mentions = notes.filter(other => n.mentions?.includes(other.id));
         return mentions.map(m => ({ source: n.id, target: m.id }));
       })
     ]
@@ -640,7 +635,7 @@ export default function KbView() {
                 initialContent={activeNoteData.content}
                 initialYjsState={activeNoteData.yjsState}
                 currentUser={{ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: cursorColor }}
-                onChange={(val, yjsState) => updateActiveNote({ content: val, yjsState })}
+                onChange={(val, yjsState, mentions) => updateActiveNote({ content: val, yjsState, mentions })}
                 allNotes={notes.map(n => ({ id: n.id, title: n.title }))}
                 onNoteClick={setActiveNote}
               />
@@ -650,7 +645,7 @@ export default function KbView() {
                 <h3 style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Cité dans...</h3>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {notes
-                    .filter(n => n.id !== activeNoteData.id && n.content && n.content.includes(`@${activeNoteData.title}`))
+                    .filter(n => n.id !== activeNoteData.id && n.mentions?.includes(activeNoteData.id))
                     .map(backlink => (
                       <button 
                         key={backlink.id}
@@ -670,7 +665,7 @@ export default function KbView() {
                       </button>
                     ))
                   }
-                  {notes.filter(n => n.id !== activeNoteData.id && n.content && n.content.includes(`@${activeNoteData.title}`)).length === 0 && (
+                  {notes.filter(n => n.id !== activeNoteData.id && n.mentions?.includes(activeNoteData.id)).length === 0 && (
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Aucune mention.</span>
                   )}
                 </div>

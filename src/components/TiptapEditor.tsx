@@ -14,10 +14,24 @@ interface TiptapEditorProps {
   noteId: string;
   initialContent: string;
   initialYjsState?: string;
-  onChange: (markdown: string, yjsState: string) => void;
+  onChange: (markdown: string, yjsState: string, mentions: string[]) => void;
   currentUser: { name: string, color: string };
   allNotes: { id: string, title: string }[];
   onNoteClick: (noteId: string) => void;
+}
+
+// Fonction récursive pour extraire les IDs de mentions
+function extractMentions(node: any): string[] {
+  let mentions: string[] = [];
+  if (node.type === 'mention' && node.attrs && node.attrs.id) {
+    mentions.push(node.attrs.id);
+  }
+  if (node.content && Array.isArray(node.content)) {
+    node.content.forEach((child: any) => {
+      mentions = mentions.concat(extractMentions(child));
+    });
+  }
+  return mentions;
 }
 
 export default function TiptapEditor({ noteId, initialContent, initialYjsState, onChange, currentUser, allNotes, onNoteClick }: TiptapEditorProps) {
@@ -106,7 +120,8 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
       }
       const b64 = btoa(binary);
       
-      onChange(markdown, b64);
+      const mentions = Array.from(new Set(extractMentions(editor.getJSON())));
+      onChange(markdown, b64, mentions);
     },
     editorProps: {
       attributes: {
