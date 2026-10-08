@@ -132,7 +132,7 @@ export default function Home() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <button className="delete-note-btn" onClick={(e) => handleDeleteBase(e, kb.id)} title="Supprimer la base">
+                    <button className="delete-base-btn" onClick={(e) => handleDeleteBase(e, kb.id)} title="Supprimer la base">
                       <Trash2 size={18} />
                     </button>
                     <ChevronRight size={20} color="rgba(255,255,255,0.5)" />

@@ -254,3 +254,24 @@
 .home-input:focus {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
 }
+
+.delete-base-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.delete-base-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.delete-base-btn {
+  opacity: 1 !important;
+}
