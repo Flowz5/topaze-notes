@@ -343,7 +343,10 @@ export default function KbView() {
     );
   }
 
-  const rootNotes = notes.filter(n => n.folderId === null);
+  const rootNotes = notes.filter(n => n.folderId === null && (!activeTag || n.tags.split(',').map(t=>t.trim()).includes(activeTag)));
+
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const allTags = Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean))));
 
   return (
     <div className="kb-layout">
@@ -376,13 +379,34 @@ export default function KbView() {
           </div>
         </div>
 
+        {allTags.length > 0 && (
+          <div style={{ padding: '0 1rem 1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {allTags.map(tag => (
+              <span 
+                key={tag}
+                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '1rem',
+                  backgroundColor: activeTag === tag ? '#5eead4' : 'rgba(255,255,255,0.1)',
+                  color: activeTag === tag ? '#0b2d30' : 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
         <div 
           className="kb-sidebar-content"
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, null)} // Drop to root
         >
           {folders.map(folder => {
-            const folderNotes = notes.filter(n => n.folderId === folder.id);
+            const folderNotes = notes.filter(n => n.folderId === folder.id && (!activeTag || n.tags.split(',').map(t=>t.trim()).includes(activeTag)));
             return (
               <div key={folder.id}>
                 <div 
