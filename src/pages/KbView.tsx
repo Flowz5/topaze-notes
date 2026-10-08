@@ -133,7 +133,8 @@ export default function KbView() {
     const unsubscribeFolders = onSnapshot(qFolders, (snapshot) => {
       const foldersData = snapshot.docs.map(doc => ({
         id: doc.id,
-        name: doc.data().name
+        name: doc.data().name,
+        parentId: doc.data().parentId || null
       })) as FolderType[];
       setFolders(foldersData);
       
