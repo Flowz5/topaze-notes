@@ -83,7 +83,12 @@ export default function KbView() {
       ...notes.filter(n => n.folderId).map(n => ({ source: n.folderId, target: n.id })),
       ...notes.flatMap(n => 
         n.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => ({ source: `tag-${tag}`, target: n.id }))
-      )
+      ),
+      // Backlinks graph links!
+      ...notes.flatMap(n => {
+        const mentions = notes.filter(other => n.id !== other.id && n.content && n.content.includes(`@${other.title}`));
+        return mentions.map(m => ({ source: n.id, target: m.id }));
+      })
     ]
   };
 
@@ -382,19 +387,23 @@ export default function KbView() {
         </div>
 
         {allTags.length > 0 && (
-          <div style={{ padding: '0 1rem 1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="kb-tags-filter" style={{ padding: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <span style={{ width: '100%', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.25rem' }}>Filtres par Tag</span>
             {allTags.map(tag => (
               <span 
                 key={tag}
                 onClick={() => setActiveTag(activeTag === tag ? null : tag)}
                 style={{
-                  fontSize: '0.75rem',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '1rem',
-                  backgroundColor: activeTag === tag ? '#5eead4' : 'rgba(255,255,255,0.1)',
-                  color: activeTag === tag ? '#0b2d30' : 'white',
+                  fontSize: '0.85rem',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '6px',
+                  backgroundColor: activeTag === tag ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
+                  color: activeTag === tag ? 'var(--surface)' : 'rgba(255,255,255,0.7)',
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  fontWeight: activeTag === tag ? '600' : '400',
+                  border: '1px solid',
+                  borderColor: activeTag === tag ? 'var(--primary)' : 'rgba(255,255,255,0.1)'
                 }}
               >
                 #{tag}
