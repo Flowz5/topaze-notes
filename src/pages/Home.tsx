@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { LogOut, Book, Plus, Users, ChevronRight, Database, Loader2 } from 'lucide-react';
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { LogOut, Book, Plus, Users, ChevronRight, Database, Loader2, Trash2 } from 'lucide-react';
 import './Home.css';
 
 type KnowledgeBase = {
@@ -35,8 +35,8 @@ export default function Home() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const allBases: KnowledgeBase[] = [];
-      snapshot.forEach((doc) => {
-        allBases.push({ id: doc.id, ...doc.data() } as KnowledgeBase);
+      snapshot.forEach((docSnap) => {
+        allBases.push({ id: docSnap.id, ...docSnap.data() } as KnowledgeBase);
       });
       
       // Séparer les bases possédées vs partagées
@@ -80,6 +80,18 @@ export default function Home() {
     }
   };
 
+  const handleDeleteBase = async (e: React.MouseEvent, kbId: string) => {
+    e.stopPropagation();
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer définitivement cette base de connaissances ? Toutes les notes et les dossiers à l'intérieur seront perdus.")) {
+      try {
+        await deleteDoc(doc(db, 'knowledgeBases', kbId));
+      } catch (error) {
+        console.error("Erreur lors de la suppression:", error);
+        alert("Impossible de supprimer la base.");
+      }
+    }
+  };
+
   const openBase = (id: string) => {
     navigate(`/kb/${id}`);
   };
@@ -119,7 +131,12 @@ export default function Home() {
                       <div className="kb-role">Propriétaire</div>
                     </div>
                   </div>
-                  <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button className="delete-note-btn" onClick={(e) => handleDeleteBase(e, kb.id)} title="Supprimer la base">
+                      <Trash2 size={18} />
+                    </button>
+                    <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
+                  </div>
                 </div>
               ))}
 
