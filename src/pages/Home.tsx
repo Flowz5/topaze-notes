@@ -43,6 +43,10 @@ export default function Home() {
       setMyBases(allBases.filter(b => b.ownerId === user.uid));
       setSharedBases(allBases.filter(b => b.ownerId !== user.uid));
       setLoading(false);
+    }, (error) => {
+      console.error("Erreur Firestore (Permissions ?) :", error);
+      alert("Impossible de lire les bases. Vérifie les règles Firestore.");
+      setLoading(false);
     });
 
     return () => unsubscribe();
