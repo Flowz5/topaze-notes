@@ -4,6 +4,7 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from './firebase';
 import Login from './pages/Login';
 import Home from './pages/Home';
+import KbView from './pages/KbView';
 import './index.css';
 
 function App() {
@@ -36,6 +37,10 @@ function App() {
         <Route 
           path="/" 
           element={user ? <Home /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/kb/:id" 
+          element={user ? <KbView /> : <Navigate to="/login" replace />} 
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

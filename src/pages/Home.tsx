@@ -1,46 +1,83 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { LogOut, Book, Plus, Users, ChevronRight, Database } from 'lucide-react';
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { LogOut, Book, Plus, Users, ChevronRight, Database, Loader2 } from 'lucide-react';
 import './Home.css';
 
-// Fausses données pour l'interface en attendant Firestore
-const mockMyBases = [
-  { id: '1', name: 'Dev Web SIO', role: 'Admin' },
-  { id: '2', name: 'Projets Persos', role: 'Admin' },
-];
-
-const mockInvitedBases = [
-  { id: '3', name: 'Réseaux & Sécurité', role: 'Contributeur' },
-  { id: '4', name: 'Culture G', role: 'Lecteur' },
-];
+type KnowledgeBase = {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: string[];
+};
 
 export default function Home() {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newBaseName, setNewBaseName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  
+  const [myBases, setMyBases] = useState<KnowledgeBase[]>([]);
+  const [sharedBases, setSharedBases] = useState<KnowledgeBase[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user || !user.email) return;
+
+    // Écouter toutes les bases où l'utilisateur (via son email) est membre
+    const q = query(
+      collection(db, 'knowledgeBases'),
+      where('members', 'array-contains', user.email)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const allBases: KnowledgeBase[] = [];
+      snapshot.forEach((doc) => {
+        allBases.push({ id: doc.id, ...doc.data() } as KnowledgeBase);
+      });
+      
+      // Séparer les bases possédées vs partagées
+      setMyBases(allBases.filter(b => b.ownerId === user.uid));
+      setSharedBases(allBases.filter(b => b.ownerId !== user.uid));
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
     navigate('/login');
   };
 
-  const handleCreateBase = (e: React.FormEvent) => {
+  const handleCreateBase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newBaseName.trim()) return;
+    const user = auth.currentUser;
+    if (!newBaseName.trim() || !user?.email) return;
     
-    // TODO: Implémenter l'ajout Firestore
-    console.log("Création de la base:", newBaseName);
-    
-    setIsModalOpen(false);
-    setNewBaseName('');
+    setIsCreating(true);
+    try {
+      await addDoc(collection(db, 'knowledgeBases'), {
+        name: newBaseName.trim(),
+        ownerId: user.uid,
+        members: [user.email],
+        createdAt: serverTimestamp()
+      });
+      setIsModalOpen(false);
+      setNewBaseName('');
+    } catch (error) {
+      console.error("Erreur lors de la création de la base:", error);
+      alert("Une erreur est survenue lors de la création.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const openBase = (id: string) => {
-    console.log("Ouvrir la base", id);
-    // TODO: Naviguer vers la base de connaissances
-    // navigate(`/kb/${id}`);
+    navigate(`/kb/${id}`);
   };
 
   return (
@@ -55,67 +92,73 @@ export default function Home() {
       </header>
 
       {/* MAIN DASHBOARD */}
-      <div className="dashboard-grid">
-        
-        {/* COLONNE GAUCHE : Mes Bases */}
-        <div>
-          <h2 className="section-title">Mes Bases de Connaissances</h2>
-          <div className="kb-list">
-            
-            {mockMyBases.map((kb) => (
-              <div key={kb.id} className="kb-card" onClick={() => openBase(kb.id)}>
-                <div className="kb-info">
-                  <div className="kb-icon-wrapper">
-                    <Database size={20} />
-                  </div>
-                  <div>
-                    <div className="kb-name">{kb.name}</div>
-                    <div className="kb-role">{kb.role}</div>
-                  </div>
-                </div>
-                <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
-              </div>
-            ))}
-
-            {/* Bouton Créer */}
-            <button className="create-card" onClick={() => setIsModalOpen(true)}>
-              <div className="create-icon-wrapper">
-                <Plus size={24} />
-              </div>
-              <span style={{ fontWeight: 600 }}>Créer une nouvelle base</span>
-            </button>
-
-          </div>
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4rem', color: 'rgba(255,255,255,0.5)' }}>
+          <Loader2 className="animate-spin" size={32} />
         </div>
-
-        {/* COLONNE DROITE : Bases partagées avec moi */}
-        <div>
-          <h2 className="section-title">Partagées avec moi</h2>
-          <div className="kb-list">
-            {mockInvitedBases.length > 0 ? (
-              mockInvitedBases.map((kb) => (
+      ) : (
+        <div className="dashboard-grid">
+          
+          {/* COLONNE GAUCHE : Mes Bases */}
+          <div>
+            <h2 className="section-title">Mes Bases de Connaissances</h2>
+            <div className="kb-list">
+              
+              {myBases.map((kb) => (
                 <div key={kb.id} className="kb-card" onClick={() => openBase(kb.id)}>
                   <div className="kb-info">
                     <div className="kb-icon-wrapper">
-                      <Users size={20} />
+                      <Database size={20} />
                     </div>
                     <div>
                       <div className="kb-name">{kb.name}</div>
-                      <div className="kb-role">{kb.role}</div>
+                      <div className="kb-role">Propriétaire</div>
                     </div>
                   </div>
                   <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
                 </div>
-              ))
-            ) : (
-              <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '2rem' }}>
-                Aucune base partagée pour le moment.
-              </div>
-            )}
-          </div>
-        </div>
+              ))}
 
-      </div>
+              {/* Bouton Créer */}
+              <button className="create-card" onClick={() => setIsModalOpen(true)}>
+                <div className="create-icon-wrapper">
+                  <Plus size={24} />
+                </div>
+                <span style={{ fontWeight: 600 }}>Créer une nouvelle base</span>
+              </button>
+
+            </div>
+          </div>
+
+          {/* COLONNE DROITE : Bases partagées avec moi */}
+          <div>
+            <h2 className="section-title">Partagées avec moi</h2>
+            <div className="kb-list">
+              {sharedBases.length > 0 ? (
+                sharedBases.map((kb) => (
+                  <div key={kb.id} className="kb-card" onClick={() => openBase(kb.id)}>
+                    <div className="kb-info">
+                      <div className="kb-icon-wrapper">
+                        <Users size={20} />
+                      </div>
+                      <div>
+                        <div className="kb-name">{kb.name}</div>
+                        <div className="kb-role">Invité</div>
+                      </div>
+                    </div>
+                    <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
+                  </div>
+                ))
+              ) : (
+                <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '2rem' }}>
+                  Aucune base partagée pour le moment.
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      )}
 
       {/* MODAL CRÉATION */}
       {isModalOpen && (
@@ -135,14 +178,24 @@ export default function Home() {
                   placeholder="Nom de la base..."
                   className="home-input"
                   autoFocus
+                  disabled={isCreating}
                 />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setIsModalOpen(false)}>
+                <button 
+                  type="button" 
+                  className="btn-cancel" 
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isCreating}
+                >
                   Annuler
                 </button>
-                <button type="submit" className="btn-confirm">
-                  Créer
+                <button 
+                  type="submit" 
+                  className="btn-confirm"
+                  disabled={isCreating}
+                >
+                  {isCreating ? 'Création...' : 'Créer'}
                 </button>
               </div>
             </form>
