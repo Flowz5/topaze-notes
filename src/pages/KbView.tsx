@@ -325,19 +325,19 @@ export default function KbView() {
         
         <div className="kb-main-content" data-color-mode="dark">
           {showGraph ? (
-            <div ref={graphContainerRef} style={{ flex: 1, backgroundColor: '#061a1b', borderRadius: '0.5rem', overflow: 'hidden' }}>
+            <div ref={graphContainerRef} style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.15)', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
               <ForceGraph2D
                 width={graphDimensions.width}
                 height={graphDimensions.height}
                 graphData={mockGraphData}
                 nodeLabel="name"
                 nodeColor={(node: any) => {
-                  if (node.group === 'folder') return '#eab308'; // Jaune pour les dossiers
-                  if (node.group === 'tag') return '#3b82f6'; // Bleu pour les tags
-                  return '#22c55e'; // Vert pour les notes
+                  if (node.group === 'folder') return '#ffffff'; // Blanc pour les dossiers
+                  if (node.group === 'tag') return 'rgba(255, 255, 255, 0.3)'; // Blanc très transparent pour les tags
+                  return '#5eead4'; // Vert menthe doux pour les notes
                 }}
-                linkColor={() => 'rgba(255,255,255,0.2)'}
-                backgroundColor="#061a1b" // Un peu plus sombre que le fond pour détacher
+                linkColor={() => 'rgba(255, 255, 255, 0.15)'}
+                backgroundColor="transparent"
                 onNodeClick={(node: any) => {
                   if (node.group === 'note') {
                     setActiveNote(node.id);
