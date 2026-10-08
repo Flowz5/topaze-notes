@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
@@ -7,6 +7,7 @@ import {
   Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus 
 } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
+import ForceGraph2D from 'react-force-graph-2d';
 import './KbView.css';
 
 export default function KbView() {
@@ -23,6 +24,33 @@ export default function KbView() {
 
   // Markdown Editor State
   const [markdownContent, setMarkdownContent] = useState<string>('# Bienvenue dans ta note\n\nCommence à écrire en **Markdown** ici !\n\n- Liste 1\n- Liste 2\n\n```js\nconsole.log("Hello Topaze !");\n```');
+
+  // Graph View State
+  const [showGraph, setShowGraph] = useState(false);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
+
+  // Mock Graph Data
+  const mockGraphData = {
+    nodes: [
+      { id: 'folder-1', name: 'Cours Magistraux', group: 'folder', val: 5 },
+      { id: 'note-1', name: 'Introduction au réseau', group: 'note', val: 3 },
+      { id: 'note-2', name: 'Modèle OSI', group: 'note', val: 3 },
+      { id: 'folder-2', name: 'Projets Pratiques', group: 'folder', val: 5 },
+      { id: 'note-3', name: 'Configuration Switch Cisco', group: 'note', val: 3 },
+      { id: 'note-4', name: 'Lexique réseau', group: 'note', val: 3 },
+      { id: 'tag-1', name: '#réseau', group: 'tag', val: 4 },
+    ],
+    links: [
+      { source: 'folder-1', target: 'note-1' },
+      { source: 'folder-1', target: 'note-2' },
+      { source: 'folder-2', target: 'note-3' },
+      { source: 'note-1', target: 'note-2' }, // Lien interne (Note 1 link to Note 2)
+      { source: 'note-3', target: 'note-1' }, // Lien interne
+      { source: 'tag-1', target: 'note-1' },
+      { source: 'tag-1', target: 'note-4' },
+    ]
+  };
 
   // Modal Partage
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -54,6 +82,23 @@ export default function KbView() {
     });
     return () => unsubscribe();
   }, [id]);
+
+  useEffect(() => {
+    if (showGraph && graphContainerRef.current) {
+      const updateDimensions = () => {
+        if (graphContainerRef.current) {
+          setGraphDimensions({
+            width: graphContainerRef.current.clientWidth,
+            height: graphContainerRef.current.clientHeight
+          });
+        }
+      };
+      
+      updateDimensions();
+      window.addEventListener('resize', updateDimensions);
+      return () => window.removeEventListener('resize', updateDimensions);
+    }
+  }, [showGraph]);
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
@@ -167,7 +212,12 @@ export default function KbView() {
               <Plus size={16} />
               Nouvelle note
             </button>
-            <button className="kb-action-btn" title="Vue Graphe">
+            <button 
+              className="kb-action-btn" 
+              title="Vue Graphe"
+              onClick={() => setShowGraph(!showGraph)}
+              style={{ backgroundColor: showGraph ? 'rgba(255,255,255,0.3)' : '' }}
+            >
               <Network size={16} />
               Graphe
             </button>
@@ -184,15 +234,15 @@ export default function KbView() {
           {expandedFolders['folder-1'] && (
             <>
               <div 
-                className={`note-item ${activeNote === 'note-1' ? 'active' : ''}`}
-                onClick={() => setActiveNote('note-1')}
+                className={`note-item ${activeNote === 'note-1' && !showGraph ? 'active' : ''}`}
+                onClick={() => { setActiveNote('note-1'); setShowGraph(false); }}
               >
                 <FileText size={16} />
                 <span>Introduction au réseau</span>
               </div>
               <div 
-                className={`note-item ${activeNote === 'note-2' ? 'active' : ''}`}
-                onClick={() => setActiveNote('note-2')}
+                className={`note-item ${activeNote === 'note-2' && !showGraph ? 'active' : ''}`}
+                onClick={() => { setActiveNote('note-2'); setShowGraph(false); }}
               >
                 <FileText size={16} />
                 <span>Modèle OSI</span>
@@ -209,8 +259,8 @@ export default function KbView() {
           {expandedFolders['folder-2'] && (
             <>
               <div 
-                className={`note-item ${activeNote === 'note-3' ? 'active' : ''}`}
-                onClick={() => setActiveNote('note-3')}
+                className={`note-item ${activeNote === 'note-3' && !showGraph ? 'active' : ''}`}
+                onClick={() => { setActiveNote('note-3'); setShowGraph(false); }}
               >
                 <FileText size={16} />
                 <span>Configuration Switch Cisco</span>
@@ -220,9 +270,9 @@ export default function KbView() {
 
           {/* Note sans dossier */}
           <div 
-            className="folder-item" 
-            style={{ paddingLeft: '1.25rem' }}
-            onClick={() => setActiveNote('note-4')}
+            className={`folder-item ${activeNote === 'note-4' && !showGraph ? 'active' : ''}`} 
+            style={{ paddingLeft: '1.25rem', backgroundColor: activeNote === 'note-4' && !showGraph ? 'rgba(255,255,255,0.1)' : '' }}
+            onClick={() => { setActiveNote('note-4'); setShowGraph(false); }}
           >
             <FileText size={16} />
             <span>Lexique réseau</span>
@@ -234,7 +284,9 @@ export default function KbView() {
       <main className="kb-main">
         <header className="kb-main-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {activeNote ? (
+            {showGraph ? (
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Vue Graphe (Bêta)</h2>
+            ) : activeNote ? (
               <input 
                 type="text" 
                 value="Titre de la note" 
@@ -272,7 +324,29 @@ export default function KbView() {
         </header>
         
         <div className="kb-main-content" data-color-mode="dark">
-          {activeNote ? (
+          {showGraph ? (
+            <div ref={graphContainerRef} style={{ flex: 1, backgroundColor: '#061a1b', borderRadius: '0.5rem', overflow: 'hidden' }}>
+              <ForceGraph2D
+                width={graphDimensions.width}
+                height={graphDimensions.height}
+                graphData={mockGraphData}
+                nodeLabel="name"
+                nodeColor={(node: any) => {
+                  if (node.group === 'folder') return '#eab308'; // Jaune pour les dossiers
+                  if (node.group === 'tag') return '#3b82f6'; // Bleu pour les tags
+                  return '#22c55e'; // Vert pour les notes
+                }}
+                linkColor={() => 'rgba(255,255,255,0.2)'}
+                backgroundColor="#061a1b" // Un peu plus sombre que le fond pour détacher
+                onNodeClick={(node: any) => {
+                  if (node.group === 'note') {
+                    setActiveNote(node.id);
+                    setShowGraph(false);
+                  }
+                }}
+              />
+            </div>
+          ) : activeNote ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <MDEditor
                 value={markdownContent}
