@@ -134,3 +134,34 @@ ul[data-type="taskList"] li[data-checked="true"] > div {
   text-decoration: line-through;
   opacity: 0.6;
 }
+
+.presence-avatars-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: -0.5rem;
+  margin-bottom: 1rem;
+  padding: 0 0.5rem;
+}
+
+.presence-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  border: 2px solid var(--surface);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  margin-left: -8px;
+  position: relative;
+  transition: transform 0.2s;
+  cursor: default;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.presence-avatar:hover {
+  transform: translateY(-2px);
+  z-index: 10;
+}
