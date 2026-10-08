@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -18,10 +18,13 @@ interface TiptapEditorProps {
 }
 
 export default function TiptapEditor({ noteId, initialContent, initialYjsState, onChange, currentUser }: TiptapEditorProps) {
-  const ydoc = useMemo(() => new Y.Doc(), [noteId]);
-  
-  // Appliquer l'état Yjs initial depuis Firestore s'il existe
-  useMemo(() => {
+  const [setup, setSetup] = useState<{ ydoc: Y.Doc; provider: WebrtcProvider } | null>(null);
+
+  useEffect(() => {
+    // 1. Initialiser le document Yjs
+    const ydoc = new Y.Doc();
+
+    // 2. Restaurer l'état Yjs depuis Firestore
     if (initialYjsState) {
       try {
         const binaryString = atob(initialYjsState);
@@ -35,11 +38,34 @@ export default function TiptapEditor({ noteId, initialContent, initialYjsState, 
         console.error("Failed to parse initial yjs state", e);
       }
     }
-  }, [ydoc, initialYjsState]);
 
-  // Se connecter au salon WebRTC unique de cette note
-  const provider = useMemo(() => new WebrtcProvider(`topaze-notes-${noteId}`, ydoc), [ydoc, noteId]);
+    // 3. Connecter le fournisseur WebRTC
+    const provider = new WebrtcProvider(`topaze-notes-${noteId}`, ydoc);
+    
+    setSetup({ ydoc, provider });
 
+    // 4. Nettoyage lors du démontage ou changement de note
+    return () => {
+      provider.destroy();
+      ydoc.destroy();
+    };
+  }, [noteId]); // Se déclenche quand on change de note
+
+  if (!setup) return <div style={{ padding: '2rem', color: 'rgba(255,255,255,0.5)' }}>Connexion au document...</div>;
+
+  return (
+    <EditorInner 
+      ydoc={setup.ydoc} 
+      provider={setup.provider} 
+      initialContent={initialContent}
+      initialYjsState={initialYjsState}
+      onChange={onChange}
+      currentUser={currentUser}
+    />
+  );
+}
+
+function EditorInner({ ydoc, provider, initialContent, initialYjsState, onChange, currentUser }: any) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -85,13 +111,6 @@ export default function TiptapEditor({ noteId, initialContent, initialYjsState, 
       }
     }
   }, [editor, initialYjsState, initialContent]);
-
-  useEffect(() => {
-    return () => {
-      provider.destroy();
-      ydoc.destroy();
-    };
-  }, [provider, ydoc]);
 
   return (
     <div className="tiptap-wrapper">
