@@ -92,6 +92,7 @@ export default function KbView() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [renameInput, setRenameInput] = useState('');
+  const [activeTag, setActiveTag] = useState<string | null>(null);
 
   const currentUser = auth.currentUser;
   const cursorColor = useMemo(() => '#' + Math.floor(Math.random()*16777215).toString(16), []);
@@ -347,7 +348,6 @@ export default function KbView() {
 
   const rootNotes = notes.filter(n => n.folderId === null && (!activeTag || n.tags.split(',').map(t=>t.trim()).includes(activeTag)));
 
-  const [activeTag, setActiveTag] = useState<string | null>(null);
   const allTags = Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean))));
 
   return (
