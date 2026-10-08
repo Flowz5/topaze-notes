@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import { Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3 } from 'lucide-react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
@@ -168,6 +170,73 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
 
   return (
     <div className="tiptap-wrapper">
+      {editor && (
+        <BubbleMenu 
+          editor={editor} 
+          
+          style={{
+            display: 'flex',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            padding: '0.25rem',
+            borderRadius: '99px',
+            gap: '0.25rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+            overflow: 'hidden'
+          }}
+        >
+          <button
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={editor.isActive('bold') ? 'is-active' : ''}
+            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('bold') ? 'var(--primary)' : 'white', background: editor.isActive('bold') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <Bold size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={editor.isActive('italic') ? 'is-active' : ''}
+            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('italic') ? 'var(--primary)' : 'white', background: editor.isActive('italic') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <Italic size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            className={editor.isActive('strike') ? 'is-active' : ''}
+            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('strike') ? 'var(--primary)' : 'white', background: editor.isActive('strike') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <Strikethrough size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            className={editor.isActive('code') ? 'is-active' : ''}
+            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('code') ? 'var(--primary)' : 'white', background: editor.isActive('code') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <Code size={16} />
+          </button>
+          <div style={{ width: '1px', background: 'var(--border)', margin: '0.25rem' }}></div>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''}
+            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('heading', { level: 1 }) ? 'var(--primary)' : 'white', background: editor.isActive('heading', { level: 1 }) ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <Heading1 size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}
+            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('heading', { level: 2 }) ? 'var(--primary)' : 'white', background: editor.isActive('heading', { level: 2 }) ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <Heading2 size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            className={editor.isActive('heading', { level: 3 }) ? 'is-active' : ''}
+            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('heading', { level: 3 }) ? 'var(--primary)' : 'white', background: editor.isActive('heading', { level: 3 }) ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <Heading3 size={16} />
+          </button>
+        </BubbleMenu>
+      )}
       <EditorContent editor={editor} />
     </div>
   );
