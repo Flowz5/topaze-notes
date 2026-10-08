@@ -201,7 +201,7 @@ export default function KbView() {
           name: name.trim(),
           parentId,
           createdAt: serverTimestamp(),
-          authorEmail: currentUser?.email || 'Inconnu'
+          authorEmail: auth.currentUser?.email || 'Inconnu'
         });
         if (parentId) {
           setExpandedFolders(prev => ({ ...prev, [parentId]: true }));
@@ -249,7 +249,8 @@ export default function KbView() {
         tags: '',
         folderId,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        authorEmail: auth.currentUser?.email || 'Inconnu'
       });
       setActiveNote(noteRef.id);
       setShowGraph(false);
