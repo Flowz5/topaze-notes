@@ -1,3 +1,4 @@
+import { structureBtsSio } from "../dataBtsSio";
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
@@ -78,41 +79,7 @@ export default function Home() {
       const kbId = kbRef.id;
 
       // 2. Prepare structure
-      const structure = [
-        {
-          folder: 'Langages',
-          subfolders: [
-            { name: 'Python', note: 'Syntaxe de base (Variables, Boucles, Fonctions, POO)' },
-            { name: 'Bash', note: 'Scripts bash, variables, conditions, boucles' },
-            { name: 'Java', note: 'Types, Classes, Interfaces, Héritage' },
-            { name: 'Kotlin', note: 'Syntaxe, Null safety, Data classes' },
-            { name: 'HTML', note: 'Structure, balises sémantiques, formulaires' },
-            { name: 'CSS', note: 'Sélecteurs, Flexbox, Grid, Animations' },
-            { name: 'JS', note: 'DOM, Evénements, Promesses, Fetch' },
-            { name: 'PHP', note: 'Variables, Sessions, BDD (PDO)' }
-          ]
-        },
-        {
-          folder: 'Frameworks',
-          subfolders: [
-            { name: 'Symfony', note: 'MVC, Routing, Twig, Doctrine' },
-            { name: 'Bootstrap', note: 'Grille, Composants, Utilitaires' }
-          ]
-        },
-        {
-          folder: 'Linux',
-          subfolders: [
-            { name: 'Commandes', note: 'ls, cd, grep, find, chmod, chown, tar' }
-          ]
-        },
-        {
-          folder: 'Système',
-          subfolders: [
-            { name: 'Processus', note: 'Ordonnancement, états, threads' },
-            { name: 'Architecture matérielle', note: 'CPU, RAM, Disque, Bus' }
-          ]
-        }
-      ];
+      const structure = structureBtsSio;
 
       // 3. Batch insert (Firestore limits to 500 writes per batch, we are far below)
       const batch = writeBatch(db);
