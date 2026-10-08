@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { 
@@ -19,6 +19,7 @@ interface Note {
   title: string;
   folderId: string | null;
   content: string;
+  yjsState?: string;
   date: string;
   tags: string;
 }
@@ -93,6 +94,7 @@ export default function KbView() {
   const [renameInput, setRenameInput] = useState('');
 
   const currentUser = auth.currentUser;
+  const cursorColor = useMemo(() => '#' + Math.floor(Math.random()*16777215).toString(16), []);
   const isOwner = baseData?.ownerId === currentUser?.uid;
 
   // Real-time Firestore Listeners
@@ -580,8 +582,11 @@ export default function KbView() {
               </div>
               <TiptapEditor
                 key={activeNoteData.id}
-                content={activeNoteData.content}
-                onChange={(val) => updateActiveNote({ content: val })}
+                noteId={activeNoteData.id}
+                initialContent={activeNoteData.content}
+                initialYjsState={activeNoteData.yjsState}
+                currentUser={{ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: cursorColor }}
+                onChange={(val, yjsState) => updateActiveNote({ content: val, yjsState })}
               />
             </div>
           ) : (
