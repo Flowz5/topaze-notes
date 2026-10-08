@@ -587,7 +587,40 @@ export default function KbView() {
                 initialYjsState={activeNoteData.yjsState}
                 currentUser={{ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: cursorColor }}
                 onChange={(val, yjsState) => updateActiveNote({ content: val, yjsState })}
+                allNotes={notes.map(n => ({ id: n.id, title: n.title }))}
+                onNoteClick={setActiveNote}
               />
+              
+              {/* BACKLINKS SECTION */}
+              <div className="backlinks-section" style={{ marginTop: '3rem', padding: '1rem', borderTop: '1px solid var(--border)' }}>
+                <h3 style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Cité dans...</h3>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {notes
+                    .filter(n => n.id !== activeNoteData.id && n.content && n.content.includes(`@${activeNoteData.title}`))
+                    .map(backlink => (
+                      <button 
+                        key={backlink.id}
+                        className="backlink-pill"
+                        onClick={() => setActiveNote(backlink.id)}
+                        style={{
+                          background: 'var(--surface-hover)',
+                          border: '1px solid var(--border)',
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '12px',
+                          color: 'var(--primary)',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        {backlink.title}
+                      </button>
+                    ))
+                  }
+                  {notes.filter(n => n.id !== activeNoteData.id && n.content && n.content.includes(`@${activeNoteData.title}`)).length === 0 && (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Aucune mention.</span>
+                  )}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="kb-empty-state">

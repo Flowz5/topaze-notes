@@ -86,3 +86,18 @@
   height: 0;
   pointer-events: none;
 }
+
+.mention {
+  color: var(--primary);
+  background: var(--surface-hover);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mention:hover {
+  background: var(--primary);
+  color: var(--surface);
+}
