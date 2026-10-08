@@ -6,6 +6,7 @@ import {
   ArrowLeft, Plus, Share2, Network, 
   Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus 
 } from 'lucide-react';
+import MDEditor from '@uiw/react-md-editor';
 import './KbView.css';
 
 export default function KbView() {
@@ -19,6 +20,9 @@ export default function KbView() {
     'folder-1': true,
   });
   const [activeNote, setActiveNote] = useState<string | null>(null);
+
+  // Markdown Editor State
+  const [markdownContent, setMarkdownContent] = useState<string>('# Bienvenue dans ta note\n\nCommence à écrire en **Markdown** ici !\n\n- Liste 1\n- Liste 2\n\n```js\nconsole.log("Hello Topaze !");\n```');
 
   // Modal Partage
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -231,7 +235,19 @@ export default function KbView() {
         <header className="kb-main-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {activeNote ? (
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Titre de la note</h2>
+              <input 
+                type="text" 
+                value="Titre de la note" 
+                readOnly
+                style={{ 
+                  fontSize: '1.5rem', 
+                  fontWeight: 'bold', 
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: 'white',
+                  outline: 'none'
+                }} 
+              />
             ) : (
               <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)' }}>Aucune note sélectionnée</h2>
             )}
@@ -255,14 +271,19 @@ export default function KbView() {
           </div>
         </header>
         
-        <div className="kb-main-content">
+        <div className="kb-main-content" data-color-mode="dark">
           {activeNote ? (
-            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>
-              <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>L'éditeur Markdown arrivera ici !</h1>
-              <p>Tu pourras écrire tes notes, ajouter des tags, etc.</p>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <MDEditor
+                value={markdownContent}
+                onChange={(val) => setMarkdownContent(val || '')}
+                height="100%"
+                style={{ flex: 1, borderRadius: '0.5rem', overflow: 'hidden' }}
+                preview="live"
+              />
             </div>
           ) : (
-            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
+            <div className="kb-empty-state">
               <Network size={64} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
               <p style={{ fontSize: '1.25rem' }}>Sélectionne une note ou ouvre la vue Graphe</p>
             </div>
