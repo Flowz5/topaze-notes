@@ -23,23 +23,28 @@ export default function Home() {
   const [sharedBases, setSharedBases] = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Je récupère l'utilisateur connecté, indispensable pour savoir qui est qui !
   useEffect(() => {
     const user = auth.currentUser;
     if (!user || !user.email) return;
 
-    // Écouter toutes les bases où l'utilisateur (via son email) est membre
+    // Je lance une écoute en temps réel sur Firebase (Firestore) pour récupérer 
+    // toutes les bases où mon adresse email fait partie du tableau "members".
     const q = query(
       collection(db, 'knowledgeBases'),
       where('members', 'array-contains', user.email)
     );
 
+    // Snapshot ! À chaque fois qu'une base est ajoutée, modifiée ou supprimée, 
+    // cette fonction se relance automatiquement et met l'interface à jour !
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const allBases: KnowledgeBase[] = [];
       snapshot.forEach((docSnap) => {
         allBases.push({ id: docSnap.id, ...docSnap.data() } as KnowledgeBase);
       });
       
-      // Séparer les bases possédées vs partagées
+      // Ici je sépare intelligemment ce qui m'appartient (ownerId == moi) 
+      // et ce que mes potes/collègues ont partagé avec moi (ownerId != moi)
       setMyBases(allBases.filter(b => b.ownerId === user.uid));
       setSharedBases(allBases.filter(b => b.ownerId !== user.uid));
       setLoading(false);
@@ -49,6 +54,7 @@ export default function Home() {
       setLoading(false);
     });
 
+    // Pas de fuite de mémoire : on arrête d'écouter si on change de page
     return () => unsubscribe();
   }, []);
 
@@ -57,6 +63,7 @@ export default function Home() {
     navigate('/login');
   };
 
+  // La fonction pour créer une toute nouvelle base de connaissances
   const handleCreateBase = async (e: React.FormEvent) => {
     e.preventDefault();
     const user = auth.currentUser;
@@ -64,6 +71,8 @@ export default function Home() {
     
     setIsCreating(true);
     try {
+      // J'enregistre le nom, le propriétaire et je m'ajoute automatiquement 
+      // dans la liste des membres autorisés.
       await addDoc(collection(db, 'knowledgeBases'), {
         name: newBaseName.trim(),
         ownerId: user.uid,
@@ -80,8 +89,12 @@ export default function Home() {
     }
   };
 
+  // Et voilà le fameux bouton pour supprimer définitivement une base !
+  // (Faut faire gaffe car ça supprime juste la base, il faudra faire une fonction 
+  // en backend (Cloud Functions) ou côté client pour supprimer toutes les notes 
+  // à l'intérieur pour pas laisser de déchets dans Firebase).
   const handleDeleteBase = async (e: React.MouseEvent, kbId: string) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Pour éviter de déclencher l'ouverture de la base en même temps !
     if (window.confirm("Êtes-vous sûr de vouloir supprimer définitivement cette base de connaissances ? Toutes les notes et les dossiers à l'intérieur seront perdus.")) {
       try {
         await deleteDoc(doc(db, 'knowledgeBases', kbId));

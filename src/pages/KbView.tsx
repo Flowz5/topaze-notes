@@ -98,11 +98,11 @@ export default function KbView() {
   const cursorColor = useMemo(() => '#' + Math.floor(Math.random()*16777215).toString(16), []);
   const isOwner = baseData?.ownerId === currentUser?.uid;
 
-  // Real-time Firestore Listeners
+  // C'est ici que toute la magie de la synchronisation en temps réel opère !
   useEffect(() => {
     if (!id) return;
 
-    // Listen to Base Info
+    // Je commence par écouter les infos globales de la base (nom, proprio...)
     const docRef = doc(db, 'knowledgeBases', id);
     const unsubscribeBase = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
