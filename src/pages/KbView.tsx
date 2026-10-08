@@ -1,13 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { 
+  doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc, 
+  collection, addDoc, query, orderBy, serverTimestamp 
+} from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
   Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Download, FolderPlus
 } from 'lucide-react';
 import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
+import debounce from 'lodash/debounce';
 import './KbView.css';
 
 interface Note {
@@ -30,29 +34,36 @@ export default function KbView() {
   
   const [baseData, setBaseData] = useState<{name: string, ownerId: string, members: string[]} | null>(null);
   
-  // Mock Data
-  const [folders, setFolders] = useState<FolderType[]>([
-    { id: 'folder-1', name: 'Cours Magistraux' },
-    { id: 'folder-2', name: 'Projets Pratiques' }
-  ]);
-  
-  const [notes, setNotes] = useState<Note[]>([
-    { id: 'note-1', title: 'Introduction au réseau', folderId: 'folder-1', content: 'Le réseau sert à faire communiquer des machines...', date: '2026-10-01', tags: 'réseau, intro' },
-    { id: 'note-2', title: 'Modèle OSI', folderId: 'folder-1', content: 'Le modèle OSI comporte 7 couches:\n1. Physique\n2. Liaison...', date: '2026-10-02', tags: 'réseau, osi' },
-    { id: 'note-3', title: 'Configuration Switch Cisco', folderId: 'folder-2', content: 'Pour configurer un switch:\n```bash\nenable\nconfigure terminal\n```', date: '2026-10-05', tags: 'pratique, cisco' },
-    { id: 'note-4', title: 'Lexique réseau', folderId: null, content: '**LAN** : Local Area Network\n**WAN** : Wide Area Network', date: '2026-10-08', tags: 'réseau, lexique' },
-  ]);
+  // States
+  const [folders, setFolders] = useState<FolderType[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
 
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    'folder-1': true,
-    'folder-2': true,
-  });
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [activeNote, setActiveNote] = useState<string | null>(null);
   
   const activeNoteData = notes.find(n => n.id === activeNote);
 
+  // Debounced update for Firestore
+  const debouncedUpdateNote = useCallback(
+    debounce(async (noteId: string, kbId: string, updates: Partial<Note>) => {
+      try {
+        const noteRef = doc(db, `knowledgeBases/${kbId}/notes/${noteId}`);
+        await updateDoc(noteRef, { ...updates, updatedAt: serverTimestamp() });
+      } catch (err) {
+        console.error("Erreur de sauvegarde:", err);
+      }
+    }, 1000),
+    []
+  );
+
   const updateActiveNote = (updates: Partial<Note>) => {
+    if (!activeNote || !id) return;
+    
+    // Update local state immediately for fast UI
     setNotes(prev => prev.map(n => n.id === activeNote ? { ...n, ...updates } : n));
+    
+    // Send to Firestore with debounce
+    debouncedUpdateNote(activeNote, id, updates);
   };
 
   // Graph View State
@@ -60,19 +71,18 @@ export default function KbView() {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
 
-  // Update mockGraphData based on state
   const mockGraphData = {
     nodes: [
       ...folders.map(f => ({ id: f.id, name: f.name, group: 'folder', val: 5 })),
       ...notes.map(n => ({ id: n.id, name: n.title, group: 'note', val: 3 })),
-      { id: 'tag-1', name: '#réseau', group: 'tag', val: 4 },
+      // Simple mock tag node extraction based on tags field
+      ...Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean)))).map(tag => ({ id: `tag-${tag}`, name: `#${tag}`, group: 'tag', val: 4 }))
     ],
     links: [
       ...notes.filter(n => n.folderId).map(n => ({ source: n.folderId, target: n.id })),
-      { source: 'note-1', target: 'note-2' },
-      { source: 'note-3', target: 'note-1' },
-      { source: 'tag-1', target: 'note-1' },
-      { source: 'tag-1', target: 'note-4' },
+      ...notes.flatMap(n => 
+        n.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => ({ source: `tag-${tag}`, target: n.id }))
+      )
     ]
   };
 
@@ -85,10 +95,13 @@ export default function KbView() {
   const currentUser = auth.currentUser;
   const isOwner = baseData?.ownerId === currentUser?.uid;
 
+  // Real-time Firestore Listeners
   useEffect(() => {
     if (!id) return;
+
+    // Listen to Base Info
     const docRef = doc(db, 'knowledgeBases', id);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+    const unsubscribeBase = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         setBaseData({
           name: docSnap.data().name,
@@ -98,10 +111,44 @@ export default function KbView() {
       } else {
         setBaseData(null);
       }
-    }, (error) => {
-      console.error(error);
-    });
-    return () => unsubscribe();
+    }, console.error);
+
+    // Listen to Folders
+    const foldersRef = collection(db, `knowledgeBases/${id}/folders`);
+    const qFolders = query(foldersRef, orderBy('createdAt', 'asc'));
+    const unsubscribeFolders = onSnapshot(qFolders, (snapshot) => {
+      const foldersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name
+      })) as FolderType[];
+      setFolders(foldersData);
+      
+      // Auto-expand all new folders
+      setExpandedFolders(prev => {
+        const newExpanded = { ...prev };
+        foldersData.forEach(f => {
+          if (newExpanded[f.id] === undefined) newExpanded[f.id] = true;
+        });
+        return newExpanded;
+      });
+    }, console.error);
+
+    // Listen to Notes
+    const notesRef = collection(db, `knowledgeBases/${id}/notes`);
+    const qNotes = query(notesRef, orderBy('createdAt', 'asc'));
+    const unsubscribeNotes = onSnapshot(qNotes, (snapshot) => {
+      const notesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Note[];
+      setNotes(notesData);
+    }, console.error);
+
+    return () => {
+      unsubscribeBase();
+      unsubscribeFolders();
+      unsubscribeNotes();
+    };
   }, [id]);
 
   useEffect(() => {
@@ -124,44 +171,90 @@ export default function KbView() {
     setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
+    if (!id) return;
     const name = window.prompt("Nom du nouveau dossier :");
     if (name && name.trim()) {
-      const newFolder = { id: `folder-${Date.now()}`, name: name.trim() };
-      setFolders([...folders, newFolder]);
-      setExpandedFolders(prev => ({ ...prev, [newFolder.id]: true }));
-    }
-  };
-
-  const handleDeleteFolder = (folderId: string) => {
-    if (window.confirm('Supprimer ce dossier et toutes les notes qu\'il contient ?')) {
-      setFolders(prev => prev.filter(f => f.id !== folderId));
-      setNotes(prev => prev.filter(n => n.folderId !== folderId));
-      if (activeNoteData?.folderId === folderId) {
-        setActiveNote(null);
+      try {
+        await addDoc(collection(db, `knowledgeBases/${id}/folders`), {
+          name: name.trim(),
+          createdAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.error(err);
       }
     }
   };
 
-  const handleAddNoteToFolder = (folderId: string) => {
-    const newNote = { 
-      id: `note-${Date.now()}`, 
-      title: 'Nouvelle Note', 
-      folderId: folderId,
-      content: '',
-      date: new Date().toISOString().split('T')[0],
-      tags: ''
-    };
-    setNotes(prev => [...prev, newNote]);
-    setActiveNote(newNote.id);
-    setShowGraph(false);
-    setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
+  const handleDeleteFolder = async (folderId: string) => {
+    if (!id) return;
+    if (window.confirm('Supprimer ce dossier et toutes les notes qu\'il contient ?')) {
+      try {
+        // Delete folder document
+        await deleteDoc(doc(db, `knowledgeBases/${id}/folders/${folderId}`));
+        
+        // Delete all notes inside this folder
+        const folderNotes = notes.filter(n => n.folderId === folderId);
+        for (const note of folderNotes) {
+          await deleteDoc(doc(db, `knowledgeBases/${id}/notes/${note.id}`));
+        }
+        
+        if (activeNoteData?.folderId === folderId) {
+          setActiveNote(null);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
-  const handleDeleteNote = (noteId: string) => {
+  const createNoteInFirestore = async (folderId: string | null = null) => {
+    if (!id) return;
+    try {
+      const noteRef = await addDoc(collection(db, `knowledgeBases/${id}/notes`), {
+        title: 'Nouvelle Note',
+        content: '',
+        date: new Date().toISOString().split('T')[0],
+        tags: '',
+        folderId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      setActiveNote(noteRef.id);
+      setShowGraph(false);
+      if (folderId) setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddNoteToFolder = (folderId: string) => {
+    createNoteInFirestore(folderId);
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!id) return;
     if (window.confirm('Supprimer cette note ?')) {
-      setNotes(prev => prev.filter(n => n.id !== noteId));
-      if (activeNote === noteId) setActiveNote(null);
+      try {
+        await deleteDoc(doc(db, `knowledgeBases/${id}/notes/${noteId}`));
+        if (activeNote === noteId) setActiveNote(null);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, folderId: string | null) => {
+    e.preventDefault();
+    const noteId = e.dataTransfer.getData('noteId');
+    if (!noteId || !id) return;
+
+    try {
+      const noteRef = doc(db, `knowledgeBases/${id}/notes/${noteId}`);
+      await updateDoc(noteRef, { folderId, updatedAt: serverTimestamp() });
+      if (folderId) setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -174,19 +267,6 @@ export default function KbView() {
     e.preventDefault(); // Necessary to allow dropping
   };
 
-  const handleDrop = (e: React.DragEvent, folderId: string | null) => {
-    e.preventDefault();
-    const noteId = e.dataTransfer.getData('noteId');
-    if (!noteId) return;
-
-    setNotes(prev => prev.map(n => 
-      n.id === noteId ? { ...n, folderId } : n
-    ));
-    
-    if (folderId) {
-      setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
-    }
-  };
 
   
   const handleInvite = async (e: React.FormEvent) => {
@@ -279,19 +359,7 @@ export default function KbView() {
           </div>
           
           <div className="kb-actions">
-            <button className="kb-action-btn" onClick={() => {
-              const newNote = { 
-                id: `note-${Date.now()}`, 
-                title: 'Nouvelle Note', 
-                folderId: null,
-                content: '',
-                date: new Date().toISOString().split('T')[0],
-                tags: ''
-              };
-              setNotes([...notes, newNote]);
-              setActiveNote(newNote.id);
-              setShowGraph(false);
-            }} title="Nouvelle note">
+            <button className="kb-action-btn" onClick={() => createNoteInFirestore()} title="Nouvelle note">
               <Plus size={16} />
             </button>
             <button className="kb-action-btn" onClick={handleCreateFolder} title="Nouveau dossier">
