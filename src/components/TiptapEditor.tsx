@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3 } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, ListTodo } from 'lucide-react';
+import TaskItem from '@tiptap/extension-task-item';
+import TaskList from '@tiptap/extension-task-list';
 import StarterKit from '@tiptap/starter-kit';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { createLowlight, common } from 'lowlight';
@@ -102,6 +104,10 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
       CodeBlockLowlight.configure({ lowlight }),
       Markdown,
       Collaboration.configure({
@@ -220,6 +226,14 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
             style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('code') ? 'var(--primary)' : 'white', background: editor.isActive('code') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
           >
             <Code size={16} />
+          </button>
+          <div style={{ width: '1px', background: 'var(--border)', margin: '0.25rem' }}></div>
+          <button
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+            className={editor.isActive('taskList') ? 'is-active' : ''}
+            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('taskList') ? 'var(--primary)' : 'white', background: editor.isActive('taskList') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <ListTodo size={16} />
           </button>
           <div style={{ width: '1px', background: 'var(--border)', margin: '0.25rem' }}></div>
           <button
