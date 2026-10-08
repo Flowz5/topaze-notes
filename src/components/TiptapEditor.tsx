@@ -77,13 +77,16 @@ export default function TiptapEditor({ noteId, initialContent, initialYjsState, 
     });
 
     const updateAwareness = () => {
-      const states = Array.from(provider.awareness.getStates().values());
+      const states = Array.from(provider.awareness.getStates().entries());
       const users = states
-        .map((state: any) => state.user)
-        .filter(user => user && user.name);
+        .filter(([_, state]: any) => state.user && state.user.name)
+        .map(([clientId, state]: any) => ({
+          id: clientId,
+          name: state.user.name,
+          color: state.user.color
+        }));
       
-      const uniqueUsers = Array.from(new Map(users.map(u => [u.name, u])).values());
-      setActiveUsers(uniqueUsers);
+      setActiveUsers(users);
     };
 
     provider.awareness.on('change', updateAwareness);
@@ -205,9 +208,9 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
     <div className="tiptap-wrapper">
       {activeUsers && activeUsers.length > 0 && (
         <div className="presence-avatars-container">
-          {activeUsers.map((u: any, i: number) => (
+          {activeUsers.map((u: any) => (
             <div 
-              key={i} 
+              key={u.id} 
               className="presence-avatar" 
               style={{ backgroundColor: u.color }}
               title={u.name}
