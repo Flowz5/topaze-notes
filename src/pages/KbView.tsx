@@ -14,6 +14,9 @@ interface Note {
   id: string;
   title: string;
   folderId: string | null;
+  content: string;
+  date: string;
+  tags: string;
 }
 
 interface FolderType {
@@ -34,10 +37,10 @@ export default function KbView() {
   ]);
   
   const [notes, setNotes] = useState<Note[]>([
-    { id: 'note-1', title: 'Introduction au réseau', folderId: 'folder-1' },
-    { id: 'note-2', title: 'Modèle OSI', folderId: 'folder-1' },
-    { id: 'note-3', title: 'Configuration Switch Cisco', folderId: 'folder-2' },
-    { id: 'note-4', title: 'Lexique réseau', folderId: null },
+    { id: 'note-1', title: 'Introduction au réseau', folderId: 'folder-1', content: 'Le réseau sert à faire communiquer des machines...', date: '2026-10-01', tags: 'réseau, intro' },
+    { id: 'note-2', title: 'Modèle OSI', folderId: 'folder-1', content: 'Le modèle OSI comporte 7 couches:\n1. Physique\n2. Liaison...', date: '2026-10-02', tags: 'réseau, osi' },
+    { id: 'note-3', title: 'Configuration Switch Cisco', folderId: 'folder-2', content: 'Pour configurer un switch:\n```bash\nenable\nconfigure terminal\n```', date: '2026-10-05', tags: 'pratique, cisco' },
+    { id: 'note-4', title: 'Lexique réseau', folderId: null, content: '**LAN** : Local Area Network\n**WAN** : Wide Area Network', date: '2026-10-08', tags: 'réseau, lexique' },
   ]);
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
@@ -45,14 +48,12 @@ export default function KbView() {
     'folder-2': true,
   });
   const [activeNote, setActiveNote] = useState<string | null>(null);
+  
+  const activeNoteData = notes.find(n => n.id === activeNote);
 
-  // Markdown & Properties State
-  const [markdownContent, setMarkdownContent] = useState<string>('Commence à écrire ta note ici...');
-  const [noteMeta, setNoteMeta] = useState({
-    title: 'Nouvelle Note',
-    date: new Date().toISOString().split('T')[0],
-    tags: ''
-  });
+  const updateActiveNote = (updates: Partial<Note>) => {
+    setNotes(prev => prev.map(n => n.id === activeNote ? { ...n, ...updates } : n));
+  };
 
   // Graph View State
   const [showGraph, setShowGraph] = useState(false);
@@ -119,16 +120,6 @@ export default function KbView() {
     }
   }, [showGraph]);
 
-  // Update properties when active note changes
-  useEffect(() => {
-    if (activeNote) {
-      const note = notes.find(n => n.id === activeNote);
-      if (note) {
-        setNoteMeta(prev => ({ ...prev, title: note.title }));
-      }
-    }
-  }, [activeNote]);
-
   const toggleFolder = (folderId: string) => {
     setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
   };
@@ -172,24 +163,7 @@ export default function KbView() {
     }
   };
 
-  const handleExport = () => {
-    if (!activeNote) return;
-    
-    // Construire le fichier markdown avec l'en-tête YAML
-    const yaml = `---\ntitle: ${noteMeta.title}\ndate: ${noteMeta.date}\ntags: [${noteMeta.tags}]\n---\n\n`;
-    const fullContent = yaml + markdownContent;
-    
-    const blob = new Blob([fullContent], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${noteMeta.title.replace(/\s+/g, '-').toLowerCase()}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
+  
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim() || !id || !isOwner) return;
@@ -281,7 +255,14 @@ export default function KbView() {
           
           <div className="kb-actions">
             <button className="kb-action-btn" onClick={() => {
-              const newNote = { id: `note-${Date.now()}`, title: 'Nouvelle Note', folderId: null };
+              const newNote = { 
+                id: `note-${Date.now()}`, 
+                title: 'Nouvelle Note', 
+                folderId: null,
+                content: '',
+                date: new Date().toISOString().split('T')[0],
+                tags: ''
+              };
               setNotes([...notes, newNote]);
               setActiveNote(newNote.id);
               setShowGraph(false);
@@ -370,14 +351,11 @@ export default function KbView() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {showGraph ? (
               <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Vue Graphe (Bêta)</h2>
-            ) : activeNote ? (
+            ) : activeNoteData ? (
               <input 
                 type="text" 
-                value={noteMeta.title} 
-                onChange={(e) => {
-                  setNoteMeta({...noteMeta, title: e.target.value});
-                  setNotes(notes.map(n => n.id === activeNote ? { ...n, title: e.target.value } : n));
-                }}
+                value={activeNoteData.title} 
+                onChange={(e) => updateActiveNote({ title: e.target.value })}
                 style={{ 
                   fontSize: '1.5rem', 
                   fontWeight: 'bold', 
@@ -393,10 +371,22 @@ export default function KbView() {
             )}
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            {activeNote && !showGraph && (
+            {activeNoteData && !showGraph && (
               <button 
                 className="export-btn" 
-                onClick={handleExport}
+                onClick={() => {
+                  const yaml = `---\ntitle: ${activeNoteData.title}\ndate: ${activeNoteData.date}\ntags: [${activeNoteData.tags}]\n---\n\n`;
+                  const fullContent = yaml + activeNoteData.content;
+                  const blob = new Blob([fullContent], { type: 'text/markdown' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${activeNoteData.title.replace(/\s+/g, '-').toLowerCase()}.md`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
                 title="Exporter en Markdown"
               >
                 <Download size={16} />
@@ -444,7 +434,7 @@ export default function KbView() {
                 }}
               />
             </div>
-          ) : activeNote ? (
+          ) : activeNoteData ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div className="kb-note-properties">
                 <div className="prop-row">
@@ -452,8 +442,8 @@ export default function KbView() {
                   <input 
                     type="date" 
                     className="prop-val" 
-                    value={noteMeta.date} 
-                    onChange={e => setNoteMeta({...noteMeta, date: e.target.value})}
+                    value={activeNoteData.date} 
+                    onChange={e => updateActiveNote({ date: e.target.value })}
                   />
                 </div>
                 <div className="prop-row">
@@ -462,14 +452,15 @@ export default function KbView() {
                     type="text" 
                     className="prop-val" 
                     placeholder="tag1, tag2..."
-                    value={noteMeta.tags} 
-                    onChange={e => setNoteMeta({...noteMeta, tags: e.target.value})}
+                    value={activeNoteData.tags} 
+                    onChange={e => updateActiveNote({ tags: e.target.value })}
                   />
                 </div>
               </div>
               <TiptapEditor
-                content={markdownContent}
-                onChange={(val) => setMarkdownContent(val)}
+                key={activeNoteData.id}
+                content={activeNoteData.content}
+                onChange={(val) => updateActiveNote({ content: val })}
               />
             </div>
           ) : (
