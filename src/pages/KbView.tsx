@@ -545,7 +545,7 @@ export default function KbView() {
         <header className="kb-main-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {showGraph ? (
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Vue Graphe (Bêta)</h2>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Vue Graphe</h2>
             ) : activeNoteData ? (
               <input 
                 type="text" 
