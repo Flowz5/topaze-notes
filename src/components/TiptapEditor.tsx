@@ -175,6 +175,7 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
           editor={editor} 
           
           style={{
+            zIndex: 9999,
             display: 'flex',
             background: 'var(--surface)',
             border: '1px solid var(--border)',

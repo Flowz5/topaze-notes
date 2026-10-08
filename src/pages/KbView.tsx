@@ -84,6 +84,7 @@ export default function KbView() {
       ...Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean)))).map(tag => ({ id: `tag-${tag}`, name: `#${tag}`, group: 'tag', val: 4 }))
     ],
     links: [
+      ...folders.filter(f => f.parentId).map(f => ({ source: f.parentId, target: f.id })),
       ...notes.filter(n => n.folderId).map(n => ({ source: n.folderId, target: n.id })),
       ...notes.flatMap(n => 
         n.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => ({ source: `tag-${tag}`, target: n.id }))
