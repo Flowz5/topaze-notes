@@ -4,9 +4,9 @@ import { db, auth } from '../firebase';
 import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
-  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus 
+  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2
 } from 'lucide-react';
-import MDEditor from '@uiw/react-md-editor';
+import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
 import './KbView.css';
 
@@ -23,7 +23,7 @@ export default function KbView() {
   const [activeNote, setActiveNote] = useState<string | null>(null);
 
   // Markdown Editor State
-  const [markdownContent, setMarkdownContent] = useState<string>('# Bienvenue dans ta note\n\nCommence à écrire en **Markdown** ici !\n\n- Liste 1\n- Liste 2\n\n```js\nconsole.log("Hello Topaze !");\n```');
+  const [markdownContent, setMarkdownContent] = useState<string>('---\ntitle: Nouvelle Note\ndate: 2026-10-08\ntags: []\n---\n\nCommence à écrire ta note ici...');
 
   // Graph View State
   const [showGraph, setShowGraph] = useState(false);
@@ -227,9 +227,11 @@ export default function KbView() {
         <div className="kb-sidebar-content">
           {/* Dossier 1 */}
           <div className="folder-item" onClick={() => toggleFolder('folder-1')}>
-            {expandedFolders['folder-1'] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            <Folder size={16} fill="rgba(255,255,255,0.2)" />
-            <span>Cours Magistraux</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {expandedFolders['folder-1'] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <Folder size={16} fill="rgba(255,255,255,0.2)" />
+              <span>Cours Magistraux</span>
+            </div>
           </div>
           {expandedFolders['folder-1'] && (
             <>
@@ -237,24 +239,32 @@ export default function KbView() {
                 className={`note-item ${activeNote === 'note-1' && !showGraph ? 'active' : ''}`}
                 onClick={() => { setActiveNote('note-1'); setShowGraph(false); }}
               >
-                <FileText size={16} />
-                <span>Introduction au réseau</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={16} />
+                  <span>Introduction au réseau</span>
+                </div>
+                <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); alert('Supprimer'); }}><Trash2 size={14} /></button>
               </div>
               <div 
                 className={`note-item ${activeNote === 'note-2' && !showGraph ? 'active' : ''}`}
                 onClick={() => { setActiveNote('note-2'); setShowGraph(false); }}
               >
-                <FileText size={16} />
-                <span>Modèle OSI</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={16} />
+                  <span>Modèle OSI</span>
+                </div>
+                <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); alert('Supprimer'); }}><Trash2 size={14} /></button>
               </div>
             </>
           )}
 
           {/* Dossier 2 */}
           <div className="folder-item" onClick={() => toggleFolder('folder-2')}>
-            {expandedFolders['folder-2'] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            <Folder size={16} fill="rgba(255,255,255,0.2)" />
-            <span>Projets Pratiques</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {expandedFolders['folder-2'] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <Folder size={16} fill="rgba(255,255,255,0.2)" />
+              <span>Projets Pratiques</span>
+            </div>
           </div>
           {expandedFolders['folder-2'] && (
             <>
@@ -262,8 +272,11 @@ export default function KbView() {
                 className={`note-item ${activeNote === 'note-3' && !showGraph ? 'active' : ''}`}
                 onClick={() => { setActiveNote('note-3'); setShowGraph(false); }}
               >
-                <FileText size={16} />
-                <span>Configuration Switch Cisco</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={16} />
+                  <span>Configuration Switch Cisco</span>
+                </div>
+                <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); alert('Supprimer'); }}><Trash2 size={14} /></button>
               </div>
             </>
           )}
@@ -274,8 +287,11 @@ export default function KbView() {
             style={{ paddingLeft: '1.25rem', backgroundColor: activeNote === 'note-4' && !showGraph ? 'rgba(255,255,255,0.1)' : '' }}
             onClick={() => { setActiveNote('note-4'); setShowGraph(false); }}
           >
-            <FileText size={16} />
-            <span>Lexique réseau</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={16} />
+              <span>Lexique réseau</span>
+            </div>
+            <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); alert('Supprimer'); }}><Trash2 size={14} /></button>
           </div>
         </div>
       </aside>
@@ -323,7 +339,7 @@ export default function KbView() {
           </div>
         </header>
         
-        <div className="kb-main-content" data-color-mode="dark">
+        <div className="kb-main-content">
           {showGraph ? (
             <div ref={graphContainerRef} style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.15)', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
               <ForceGraph2D
@@ -347,15 +363,10 @@ export default function KbView() {
               />
             </div>
           ) : activeNote ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <MDEditor
-                value={markdownContent}
-                onChange={(val) => setMarkdownContent(val || '')}
-                height="100%"
-                style={{ flex: 1, borderRadius: '0.5rem', overflow: 'hidden' }}
-                preview="live"
-              />
-            </div>
+            <TiptapEditor
+              content={markdownContent}
+              onChange={(val) => setMarkdownContent(val)}
+            />
           ) : (
             <div className="kb-empty-state">
               <Network size={64} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />

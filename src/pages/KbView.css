@@ -87,7 +87,7 @@
 .folder-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
   cursor: pointer;
@@ -103,7 +103,7 @@
 .note-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
   padding: 0.5rem 0.75rem 0.5rem 2.25rem;
   border-radius: 0.5rem;
   cursor: pointer;
@@ -120,6 +120,30 @@
 .note-item.active {
   background-color: rgba(255, 255, 255, 0.1);
   color: white;
+}
+
+.delete-note-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.delete-note-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.note-item:hover .delete-note-btn,
+.folder-item:hover .delete-note-btn {
+  opacity: 1;
 }
 
 .kb-main {
