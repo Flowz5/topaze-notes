@@ -53,7 +53,7 @@ export default function KbView() {
       } catch (err) {
         console.error("Erreur de sauvegarde:", err);
       }
-    }, 1000),
+    }, 1000, { maxWait: 2000 }), // Sauvegarde forcée toutes les 2s max même si on n'arrête pas de taper !
     []
   );
 
