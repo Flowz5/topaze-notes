@@ -23,6 +23,7 @@ interface Note {
   date: string;
   tags: string;
   updatedAt?: Date;
+  authorEmail?: string;
   mentions?: string[];
 }
 
@@ -413,7 +414,7 @@ export default function KbView() {
         {childFolders.map(folder => (
           <div key={folder.id}>
             <div 
-              className="folder-item"
+              className="folder-item" title={isOwner ? `Créé par : ${folder.authorEmail || 'Inconnu'}` : undefined}
               draggable
               onDragStart={(e) => handleDragStart(e, folder.id, 'folder')}
               onClick={() => toggleFolder(folder.id)}
@@ -443,7 +444,7 @@ export default function KbView() {
             key={note.id}
             draggable
             onDragStart={(e) => handleDragStart(e, note.id, 'note')}
-            className={`note-item ${activeNote === note.id && !showGraph ? 'active' : ''}`}
+            className={`note-item ${activeNote === note.id && !showGraph ? 'active' : ''}`} title={isOwner ? `Créé par : ${note.authorEmail || 'Inconnu'}` : undefined}
             onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
