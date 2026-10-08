@@ -19,15 +19,18 @@ service cloud.firestore {
       return isOwner(kbData) || isMember(kbData);
     }
     
-    // Security check: ensure string lengths are reasonable to prevent DB stuffing
     function isReasonableString(text, maxLength) {
       return text is string && text.size() <= maxLength;
+    }
+    
+    // parentId peut être null (dossier racine) ou une string valide
+    function isValidParentId(parentId) {
+      return parentId == null || isReasonableString(parentId, 100);
     }
 
     match /knowledgeBases/{kbId} {
       allow read: if hasAccess(resource.data);
       
-      // Strict schema validation for Knowledge Bases
       allow create: if isAuthenticated() 
                     && request.resource.data.ownerId == request.auth.uid
                     && isReasonableString(request.resource.data.name, 100)
@@ -43,7 +46,7 @@ service cloud.firestore {
         allow read: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data);
         allow write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data)
                      && isReasonableString(request.resource.data.name, 100)
-                     && isReasonableString(request.resource.data.parentId, 100)
+                     && isValidParentId(request.resource.data.parentId)
                      && isReasonableString(request.resource.data.authorEmail, 150);
       }
       
@@ -51,8 +54,8 @@ service cloud.firestore {
         allow read: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data);
         allow write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data)
                      && isReasonableString(request.resource.data.title, 200)
-                     && isReasonableString(request.resource.data.content, 1048576) // Max 1MB for content
-                     && isReasonableString(request.resource.data.parentId, 100)
+                     && isReasonableString(request.resource.data.content, 1048576)
+                     && isValidParentId(request.resource.data.parentId)
                      && isReasonableString(request.resource.data.authorEmail, 150);
       }
     }
