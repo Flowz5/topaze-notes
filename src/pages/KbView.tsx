@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
-  Folder, FileText, ChevronDown, ChevronRight, Settings 
+  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus 
 } from 'lucide-react';
 import './KbView.css';
 
 export default function KbView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [baseName, setBaseName] = useState<string>('Chargement...');
+  
+  const [baseData, setBaseData] = useState<{name: string, ownerId: string, members: string[]} | null>(null);
   
   // Mock d'une arborescence pour la démo
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
@@ -19,28 +20,68 @@ export default function KbView() {
   });
   const [activeNote, setActiveNote] = useState<string | null>(null);
 
+  // Modal Partage
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+
+  const currentUser = auth.currentUser;
+  const isOwner = baseData?.ownerId === currentUser?.uid;
+
   useEffect(() => {
     if (!id) return;
-    const fetchBaseInfo = async () => {
-      try {
-        const docRef = doc(db, 'knowledgeBases', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setBaseName(docSnap.data().name);
-        } else {
-          setBaseName('Base introuvable');
-        }
-      } catch (err) {
-        console.error(err);
-        setBaseName('Erreur');
+    const docRef = doc(db, 'knowledgeBases', id);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setBaseData({
+          name: docSnap.data().name,
+          ownerId: docSnap.data().ownerId,
+          members: docSnap.data().members || []
+        });
+      } else {
+        setBaseData(null);
       }
-    };
-    fetchBaseInfo();
+    }, (error) => {
+      console.error(error);
+    });
+    return () => unsubscribe();
   }, [id]);
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
   };
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim() || !id || !isOwner) return;
+    
+    try {
+      const docRef = doc(db, 'knowledgeBases', id);
+      await updateDoc(docRef, {
+        members: arrayUnion(inviteEmail.trim().toLowerCase())
+      });
+      setInviteEmail('');
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de l'invitation.");
+    }
+  };
+
+  const handleRemoveMember = async (email: string) => {
+    if (!id || !isOwner) return;
+    if (email === currentUser?.email) return; // Ne pas se virer soi-même
+    
+    try {
+      const docRef = doc(db, 'knowledgeBases', id);
+      await updateDoc(docRef, {
+        members: arrayRemove(email)
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la suppression.");
+    }
+  };
+
+  const baseName = baseData ? baseData.name : 'Chargement...';
 
   return (
     <div className="kb-layout">
@@ -134,7 +175,11 @@ export default function KbView() {
             )}
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <button className="logout-btn" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+            <button 
+              className="logout-btn" 
+              style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+              onClick={() => setIsShareModalOpen(true)}
+            >
               <Share2 size={16} />
               Partager
             </button>
@@ -158,6 +203,68 @@ export default function KbView() {
           )}
         </div>
       </main>
+
+      {/* MODAL PARTAGE */}
+      {isShareModalOpen && baseData && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 className="modal-title">Gérer les accès</h3>
+            
+            {isOwner ? (
+              <form onSubmit={handleInvite} style={{ marginBottom: '2rem' }}>
+                <div className="input-group" style={{ marginBottom: '1rem' }}>
+                  <input
+                    type="email"
+                    required
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="Adresse email de l'invité..."
+                    className="home-input"
+                    style={{ paddingLeft: '1.5rem' }}
+                  />
+                </div>
+                <button type="submit" className="btn-confirm" style={{ width: '100%' }}>
+                  Inviter
+                </button>
+              </form>
+            ) : (
+              <p style={{ textAlign: 'center', marginBottom: '2rem', color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem' }}>
+                Seul le propriétaire peut inviter de nouveaux membres.
+              </p>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
+                Membres ({baseData.members.length})
+              </h4>
+              <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {baseData.members.map((email) => (
+                  <div key={email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem 1rem', borderRadius: '0.5rem' }}>
+                    <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)' }}>
+                      {email} {email === currentUser?.email && <span style={{ opacity: 0.5 }}>(Toi)</span>}
+                    </span>
+                    {isOwner && email !== currentUser?.email && (
+                      <button 
+                        onClick={() => handleRemoveMember(email)}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.25rem', display: 'flex', alignItems: 'center' }}
+                        title="Retirer l'accès"
+                      >
+                        <UserMinus size={18} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '2rem' }}>
+              <button className="btn-cancel" onClick={() => setIsShareModalOpen(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
