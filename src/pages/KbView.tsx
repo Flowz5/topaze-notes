@@ -29,6 +29,7 @@ interface Note {
 interface FolderType {
   id: string;
   name: string;
+  parentId?: string | null;
 }
 
 export default function KbView() {
@@ -184,37 +185,46 @@ export default function KbView() {
     setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
   };
 
-  const handleCreateFolder = async () => {
+  const handleCreateFolder = async (parentId: string | null = null) => {
     if (!id) return;
     const name = window.prompt("Nom du nouveau dossier :");
     if (name && name.trim()) {
       try {
         await addDoc(collection(db, `knowledgeBases/${id}/folders`), {
           name: name.trim(),
+          parentId,
           createdAt: serverTimestamp()
         });
+        if (parentId) {
+          setExpandedFolders(prev => ({ ...prev, [parentId]: true }));
+        }
       } catch (err) {
         console.error(err);
       }
     }
   };
 
+  const deleteFolderRecursive = async (fid: string) => {
+    // Delete all notes inside this folder
+    const folderNotes = notes.filter(n => n.folderId === fid);
+    for (const note of folderNotes) {
+      await deleteDoc(doc(db, `knowledgeBases/${id}/notes/${note.id}`));
+      if (activeNote === note.id) setActiveNote(null);
+    }
+    // Find all sub-folders and delete them recursively
+    const subFolders = folders.filter(f => f.parentId === fid);
+    for (const sub of subFolders) {
+      await deleteFolderRecursive(sub.id);
+    }
+    // Delete the folder itself
+    await deleteDoc(doc(db, `knowledgeBases/${id}/folders/${fid}`));
+  };
+
   const handleDeleteFolder = async (folderId: string) => {
     if (!id) return;
-    if (window.confirm('Supprimer ce dossier et toutes les notes qu\'il contient ?')) {
+    if (window.confirm('Supprimer ce dossier et toutes les notes/sous-dossiers qu\'il contient ?')) {
       try {
-        // Delete folder document
-        await deleteDoc(doc(db, `knowledgeBases/${id}/folders/${folderId}`));
-        
-        // Delete all notes inside this folder
-        const folderNotes = notes.filter(n => n.folderId === folderId);
-        for (const note of folderNotes) {
-          await deleteDoc(doc(db, `knowledgeBases/${id}/notes/${note.id}`));
-        }
-        
-        if (activeNoteData?.folderId === folderId) {
-          setActiveNote(null);
-        }
+        await deleteFolderRecursive(folderId);
       } catch (err) {
         console.error(err);
       }
@@ -257,23 +267,37 @@ export default function KbView() {
     }
   };
 
-  const handleDrop = async (e: React.DragEvent, folderId: string | null) => {
+  const handleDrop = async (e: React.DragEvent, targetFolderId: string | null) => {
     e.preventDefault();
-    const noteId = e.dataTransfer.getData('noteId');
-    if (!noteId || !id) return;
+    e.stopPropagation();
+    
+    const dragType = e.dataTransfer.getData('dragType');
+    const draggedId = e.dataTransfer.getData('draggedId');
+    if (!draggedId || !id) return;
+    
+    // Prevent dropping a folder into itself
+    if (dragType === 'folder' && draggedId === targetFolderId) return;
 
     try {
-      const noteRef = doc(db, `knowledgeBases/${id}/notes/${noteId}`);
-      await updateDoc(noteRef, { folderId, updatedAt: serverTimestamp() });
-      if (folderId) setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
+      if (dragType === 'note') {
+        const noteRef = doc(db, `knowledgeBases/${id}/notes/${draggedId}`);
+        await updateDoc(noteRef, { folderId: targetFolderId, updatedAt: serverTimestamp() });
+      } else if (dragType === 'folder') {
+        const folderRef = doc(db, `knowledgeBases/${id}/folders/${draggedId}`);
+        await updateDoc(folderRef, { parentId: targetFolderId });
+      }
+      
+      if (targetFolderId) setExpandedFolders(prev => ({ ...prev, [targetFolderId]: true }));
     } catch (err) {
       console.error(err);
     }
   };
 
   // Drag and Drop
-  const handleDragStart = (e: React.DragEvent, noteId: string) => {
-    e.dataTransfer.setData('noteId', noteId);
+  const handleDragStart = (e: React.DragEvent, draggedId: string, dragType: 'note' | 'folder') => {
+    e.stopPropagation();
+    e.dataTransfer.setData('dragType', dragType);
+    e.dataTransfer.setData('draggedId', draggedId);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -356,9 +380,63 @@ export default function KbView() {
     );
   }
 
-  const rootNotes = notes.filter(n => n.folderId === null && (!activeTag || n.tags.split(',').map(t=>t.trim()).includes(activeTag)));
+  
 
   const allTags = Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean))));
+
+
+  const renderTree = (parentId: string | null, depth: number = 0) => {
+    const childFolders = folders.filter(f => (f.parentId || null) === parentId);
+    const childNotes = notes.filter(n => n.folderId === parentId && (!activeTag || n.tags.split(',').map(t=>t.trim()).includes(activeTag)));
+
+    return (
+      <div style={{ marginLeft: depth > 0 ? '1rem' : '0' }}>
+        {childFolders.map(folder => (
+          <div key={folder.id}>
+            <div 
+              className="folder-item"
+              draggable
+              onDragStart={(e) => handleDragStart(e, folder.id, 'folder')}
+              onClick={() => toggleFolder(folder.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => {
+                e.stopPropagation();
+                handleDrop(e, folder.id);
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {expandedFolders[folder.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                <Folder size={16} fill="rgba(255,255,255,0.2)" />
+                <span>{folder.name}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                <button className="add-note-btn" title="Ajouter un sous-dossier" onClick={(e) => { e.stopPropagation(); handleCreateFolder(folder.id); }}><FolderPlus size={14} /></button>
+                <button className="add-note-btn" title="Ajouter une note" onClick={(e) => { e.stopPropagation(); handleAddNoteToFolder(folder.id); }}><Plus size={14} /></button>
+                <button className="delete-note-btn" title="Supprimer le dossier" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}><Trash2 size={14} /></button>
+              </div>
+            </div>
+            {expandedFolders[folder.id] && renderTree(folder.id, depth + 1)}
+          </div>
+        ))}
+        
+        {childNotes.map(note => (
+          <div 
+            key={note.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, note.id, 'note')}
+            className={`note-item ${activeNote === note.id && !showGraph ? 'active' : ''}`}
+            onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={16} />
+              <span>{note.title}</span>
+            </div>
+            <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}><Trash2 size={14} /></button>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="kb-layout">
@@ -377,7 +455,7 @@ export default function KbView() {
             <button className="kb-action-btn" onClick={() => createNoteInFirestore()} title="Nouvelle note">
               <Plus size={16} />
             </button>
-            <button className="kb-action-btn" onClick={handleCreateFolder} title="Nouveau dossier">
+            <button className="kb-action-btn" onClick={() => handleCreateFolder(null)} title="Nouveau dossier">
               <FolderPlus size={16} />
             </button>
             <button 
@@ -456,64 +534,7 @@ export default function KbView() {
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, null)} // Drop to root
         >
-          {folders.map(folder => {
-            const folderNotes = notes.filter(n => n.folderId === folder.id && (!activeTag || n.tags.split(',').map(t=>t.trim()).includes(activeTag)));
-            return (
-              <div key={folder.id}>
-                <div 
-                  className="folder-item" 
-                  onClick={() => toggleFolder(folder.id)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => {
-                    e.stopPropagation(); // Prevent dropping to root
-                    handleDrop(e, folder.id);
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {expandedFolders[folder.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    <Folder size={16} fill="rgba(255,255,255,0.2)" />
-                    <span>{folder.name}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.25rem' }}>
-                    <button className="add-note-btn" title="Ajouter une note" onClick={(e) => { e.stopPropagation(); handleAddNoteToFolder(folder.id); }}><Plus size={14} /></button>
-                    <button className="delete-note-btn" title="Supprimer le dossier" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}><Trash2 size={14} /></button>
-                  </div>
-                </div>
-                {expandedFolders[folder.id] && folderNotes.map(note => (
-                  <div 
-                    key={note.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, note.id)}
-                    className={`note-item ${activeNote === note.id && !showGraph ? 'active' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <FileText size={16} />
-                      <span>{note.title}</span>
-                    </div>
-                    <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}><Trash2 size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            )
-          })}
-
-          {rootNotes.map(note => (
-            <div 
-              key={note.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, note.id)}
-              className={`folder-item ${activeNote === note.id && !showGraph ? 'active' : ''}`} 
-              style={{ paddingLeft: '1.25rem', backgroundColor: activeNote === note.id && !showGraph ? 'rgba(255,255,255,0.1)' : '' }}
-              onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText size={16} />
-                <span>{note.title}</span>
-              </div>
-              <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}><Trash2 size={14} /></button>
-            </div>
-          ))}
+          {renderTree(null, 0)}
         </div>
       </aside>
 

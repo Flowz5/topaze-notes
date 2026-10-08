@@ -1,0 +1,10 @@
+Liens bidirectionnels (Backlinks)
+Vraie Vue Graphe Interactive
+Arborescence infinie
+Glisser-Déposer d'Images
+Barre d'outils flottante (Bubble Menu)
+Code coloré (Syntax Highlighting)
+To-Do Lists interactives 
+Recherche Globale (Cmd+K ou Ctrl+K)
+Recherche Full-Text
+Avatars de présence
