@@ -133,6 +133,31 @@ export default function KbView() {
     }
   };
 
+  const handleDeleteFolder = (folderId: string) => {
+    if (window.confirm('Supprimer ce dossier et toutes les notes qu\'il contient ?')) {
+      setFolders(prev => prev.filter(f => f.id !== folderId));
+      setNotes(prev => prev.filter(n => n.folderId !== folderId));
+      if (activeNoteData?.folderId === folderId) {
+        setActiveNote(null);
+      }
+    }
+  };
+
+  const handleAddNoteToFolder = (folderId: string) => {
+    const newNote = { 
+      id: `note-${Date.now()}`, 
+      title: 'Nouvelle Note', 
+      folderId: folderId,
+      content: '',
+      date: new Date().toISOString().split('T')[0],
+      tags: ''
+    };
+    setNotes(prev => [...prev, newNote]);
+    setActiveNote(newNote.id);
+    setShowGraph(false);
+    setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
+  };
+
   const handleDeleteNote = (noteId: string) => {
     if (window.confirm('Supprimer cette note ?')) {
       setNotes(prev => prev.filter(n => n.id !== noteId));
@@ -305,6 +330,10 @@ export default function KbView() {
                     {expandedFolders[folder.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     <Folder size={16} fill="rgba(255,255,255,0.2)" />
                     <span>{folder.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <button className="add-note-btn" title="Ajouter une note" onClick={(e) => { e.stopPropagation(); handleAddNoteToFolder(folder.id); }}><Plus size={14} /></button>
+                    <button className="delete-note-btn" title="Supprimer le dossier" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}><Trash2 size={14} /></button>
                   </div>
                 </div>
                 {expandedFolders[folder.id] && folderNotes.map(note => (
