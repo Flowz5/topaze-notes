@@ -72,11 +72,14 @@ export default function KbView() {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
 
+  const escapeRegExp = (string: string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
   const mockGraphData = {
     nodes: [
       ...folders.map(f => ({ id: f.id, name: f.name, group: 'folder', val: 5 })),
       ...notes.map(n => ({ id: n.id, name: n.title, group: 'note', val: 3 })),
-      // Simple mock tag node extraction based on tags field
       ...Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean)))).map(tag => ({ id: `tag-${tag}`, name: `#${tag}`, group: 'tag', val: 4 }))
     ],
     links: [
@@ -84,9 +87,14 @@ export default function KbView() {
       ...notes.flatMap(n => 
         n.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => ({ source: `tag-${tag}`, target: n.id }))
       ),
-      // Backlinks graph links!
+      // Backlinks graph links (with exact match to avoid substring issues like Note 1 vs Note 11)
       ...notes.flatMap(n => {
-        const mentions = notes.filter(other => n.id !== other.id && n.content && n.content.includes(`@${other.title}`));
+        const mentions = notes.filter(other => {
+          if (n.id === other.id || !n.content) return false;
+          // Look for @Title followed by non-word char or end of string
+          const regex = new RegExp(`@${escapeRegExp(other.title)}(?![\\wÀ-ÿ])`, 'i');
+          return regex.test(n.content);
+        });
         return mentions.map(m => ({ source: n.id, target: m.id }));
       })
     ]
@@ -98,6 +106,8 @@ export default function KbView() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [renameInput, setRenameInput] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [isTagsOpen, setIsTagsOpen] = useState(true);
+  const [tagSearch, setTagSearch] = useState('');
 
   const currentUser = auth.currentUser;
   const cursorColor = useMemo(() => '#' + Math.floor(Math.random()*16777215).toString(16), []);
@@ -387,28 +397,63 @@ export default function KbView() {
         </div>
 
         {allTags.length > 0 && (
-          <div className="kb-tags-filter" style={{ padding: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ width: '100%', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.25rem' }}>Filtres par Tag</span>
-            {allTags.map(tag => (
-              <span 
-                key={tag}
-                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                style={{
-                  fontSize: '0.85rem',
-                  padding: '0.35rem 0.65rem',
-                  borderRadius: '6px',
-                  backgroundColor: activeTag === tag ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
-                  color: activeTag === tag ? 'var(--surface)' : 'rgba(255,255,255,0.7)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontWeight: activeTag === tag ? '600' : '400',
-                  border: '1px solid',
-                  borderColor: activeTag === tag ? 'var(--primary)' : 'rgba(255,255,255,0.1)'
-                }}
-              >
-                #{tag}
+          <div className="kb-tags-filter" style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <div 
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: isTagsOpen ? '0.75rem' : '0' }}
+              onClick={() => setIsTagsOpen(!isTagsOpen)}
+            >
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Filtres par Tag ({allTags.length})
               </span>
-            ))}
+              {isTagsOpen ? <ChevronDown size={14} color="rgba(255,255,255,0.3)" /> : <ChevronRight size={14} color="rgba(255,255,255,0.3)" />}
+            </div>
+            
+            {isTagsOpen && (
+              <>
+                <input 
+                  type="text" 
+                  placeholder="Rechercher un tag..." 
+                  value={tagSearch}
+                  onChange={(e) => setTagSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    backgroundColor: 'rgba(0,0,0,0.2)',
+                    color: 'white',
+                    fontSize: '0.85rem',
+                    marginBottom: '0.75rem',
+                    outline: 'none'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', maxHeight: '150px', overflowY: 'auto' }}>
+                  {allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase())).map(tag => (
+                    <span 
+                      key={tag}
+                      onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                      style={{
+                        fontSize: '0.85rem',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '6px',
+                        backgroundColor: activeTag === tag ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
+                        color: activeTag === tag ? 'var(--surface)' : 'rgba(255,255,255,0.7)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        fontWeight: activeTag === tag ? '600' : '400',
+                        border: '1px solid',
+                        borderColor: activeTag === tag ? 'var(--primary)' : 'rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                  {allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (
+                    <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Aucun tag trouvé</span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
         <div 
