@@ -1,32 +1,43 @@
-# React + TypeScript + Vite
+# Topaze Notes
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Topaze Notes is a collaborative and interconnected knowledge base application. It allows you to create, organize, and link notes in real-time.
 
-Currently, two official plugins are available:
+## Key Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Real-Time Collaboration: Edit notes simultaneously with other users using WebRTC peer-to-peer synchronization.
+- Bi-directional Links: Connect notes together using the @ mention syntax.
+- Interactive Graph View: Visualize the connections between all your notes through an interactive, physics-based network graph.
+- Rich Text Editor: Write formatting-rich notes using Markdown syntax (headings, bold, italic, code blocks, interactive task lists).
+- Global Search: Quickly find any note by title or content using the full-text search command palette (Cmd+K).
+- Hierarchical Organization: Group notes into nested folders for better structure.
+- Author Tracking: See who created each note or folder directly in the interface.
+- Presence Avatars: See which users are currently viewing or editing the same note.
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Frontend: React (Vite, TypeScript)
+- Styling: Vanilla CSS
+- Database and Auth: Firebase (Firestore, Authentication)
+- Rich Text Editor: Tiptap
+- Collaboration: Yjs, y-webrtc
+- Graph Visualization: React Force Graph
 
-## Expanding the Oxlint configuration
+## Setup Instructions
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+1. Clone the repository.
+2. Install dependencies:
+   npm install
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+3. Setup Firebase:
+   Create a Firebase project, enable Authentication (Email/Password) and Firestore Database.
+   Replace the Firebase configuration in src/firebase.ts.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+4. Start the development server:
+   npm run dev
+
+## Build for Production
+
+To create a production build, run:
+npm run build
+
+The optimized assets will be available in the dist directory, ready to be deployed.
