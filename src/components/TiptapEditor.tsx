@@ -4,7 +4,6 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import './TiptapEditor.css';
@@ -65,17 +64,13 @@ export default function TiptapEditor({ noteId, initialContent, initialYjsState, 
   );
 }
 
-function EditorInner({ ydoc, provider, initialContent, initialYjsState, onChange, currentUser }: any) {
+function EditorInner({ ydoc, initialContent, initialYjsState, onChange }: any) {
   const editor = useEditor({
     extensions: [
       StarterKit,
       Markdown,
       Collaboration.configure({
         document: ydoc,
-      }),
-      CollaborationCursor.configure({
-        provider,
-        user: { name: currentUser.name, color: currentUser.color },
       }),
       Placeholder.configure({
         placeholder: 'Écris ta note ici (en temps réel)...',
