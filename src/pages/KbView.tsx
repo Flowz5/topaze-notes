@@ -123,6 +123,7 @@ export default function KbView() {
   const isOwner = baseData?.ownerId === currentUser?.uid;
 
   // C'est ici que toute la magie de la synchronisation en temps réel opère !
+  // Je charge les notes et dossiers de la base de connaissances.
   useEffect(() => {
     if (!id) return;
 

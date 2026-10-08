@@ -104,6 +104,7 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
     notesRef.current = allNotes;
   }, [allNotes]);
 
+  // Je configure l'éditeur riche avec mes extensions (Markdown, Collab, etc.)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
