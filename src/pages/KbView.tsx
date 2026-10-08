@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
   Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus 
@@ -24,6 +24,10 @@ export default function KbView() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
 
+  // Modal Paramètres
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [renameInput, setRenameInput] = useState('');
+
   const currentUser = auth.currentUser;
   const isOwner = baseData?.ownerId === currentUser?.uid;
 
@@ -38,6 +42,7 @@ export default function KbView() {
           members: docSnap.data().members || []
         });
       } else {
+        // La base n'existe plus ou on n'a plus accès
         setBaseData(null);
       }
     }, (error) => {
@@ -81,7 +86,64 @@ export default function KbView() {
     }
   };
 
+  const openSettings = () => {
+    if (baseData) setRenameInput(baseData.name);
+    setIsSettingsModalOpen(true);
+  };
+
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !isOwner || !renameInput.trim()) return;
+    try {
+      await updateDoc(doc(db, 'knowledgeBases', id), {
+        name: renameInput.trim()
+      });
+      setIsSettingsModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors du renommage.");
+    }
+  };
+
+  const handleDeleteBase = async () => {
+    if (!id || !isOwner) return;
+    if (window.confirm("Es-tu sûr de vouloir supprimer définitivement cette base ? Cette action est irréversible.")) {
+      try {
+        await deleteDoc(doc(db, 'knowledgeBases', id));
+        navigate('/');
+      } catch (err) {
+        console.error(err);
+        alert("Erreur lors de la suppression.");
+      }
+    }
+  };
+
+  const handleLeaveBase = async () => {
+    if (!id || !currentUser?.email) return;
+    if (window.confirm("Es-tu sûr de vouloir quitter cette base ? Tu devras être invité à nouveau pour y accéder.")) {
+      try {
+        await updateDoc(doc(db, 'knowledgeBases', id), {
+          members: arrayRemove(currentUser.email)
+        });
+        navigate('/');
+      } catch (err) {
+        console.error(err);
+        alert("Erreur en quittant la base.");
+      }
+    }
+  };
+
   const baseName = baseData ? baseData.name : 'Chargement...';
+
+  // Si on a été supprimé de la base ou si elle est supprimée
+  if (baseData === null) {
+    return (
+      <div className="kb-layout" style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '1rem' }}>
+        <h2>Base introuvable ou accès refusé</h2>
+        <button className="btn-cancel" onClick={() => navigate('/')}>Retour à l'accueil</button>
+      </div>
+    );
+  }
 
   return (
     <div className="kb-layout">
@@ -183,7 +245,11 @@ export default function KbView() {
               <Share2 size={16} />
               Partager
             </button>
-            <button className="logout-btn" style={{ padding: '0.5rem', borderRadius: '50%' }}>
+            <button 
+              className="logout-btn" 
+              style={{ padding: '0.5rem', borderRadius: '50%' }}
+              onClick={openSettings}
+            >
               <Settings size={18} />
             </button>
           </div>
@@ -259,6 +325,70 @@ export default function KbView() {
 
             <div className="modal-actions" style={{ marginTop: '2rem' }}>
               <button className="btn-cancel" onClick={() => setIsShareModalOpen(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PARAMÈTRES */}
+      {isSettingsModalOpen && baseData && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 className="modal-title">Paramètres</h3>
+            
+            {isOwner ? (
+              <>
+                <form onSubmit={handleRename} style={{ marginBottom: '2rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                    Renommer la base
+                  </label>
+                  <div className="input-group" style={{ marginBottom: '1rem' }}>
+                    <input
+                      type="text"
+                      required
+                      value={renameInput}
+                      onChange={(e) => setRenameInput(e.target.value)}
+                      className="home-input"
+                      style={{ paddingLeft: '1.5rem' }}
+                    />
+                  </div>
+                  <button type="submit" className="btn-confirm" style={{ width: '100%' }}>
+                    Enregistrer le nouveau nom
+                  </button>
+                </form>
+
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+                  <h4 style={{ color: '#ef4444', marginBottom: '1rem', fontWeight: 600 }}>Zone de danger</h4>
+                  <button 
+                    onClick={handleDeleteBase}
+                    style={{ width: '100%', padding: '0.75rem', backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '9999px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    Supprimer la base
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1.5rem' }}>
+                  Tu es invité sur cette base. Tu ne peux pas modifier ses paramètres.
+                </p>
+                <button 
+                  onClick={handleLeaveBase}
+                  style={{ width: '100%', padding: '0.75rem', backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '9999px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Quitter la base
+                </button>
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ marginTop: '2rem' }}>
+              <button className="btn-cancel" onClick={() => setIsSettingsModalOpen(false)}>
                 Fermer
               </button>
             </div>
