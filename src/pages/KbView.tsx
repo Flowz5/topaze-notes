@@ -4,7 +4,7 @@ import { db, auth } from '../firebase';
 import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
-  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Download
+  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Download, FolderPlus
 } from 'lucide-react';
 import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
@@ -131,6 +131,15 @@ export default function KbView() {
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
+  };
+
+  const handleCreateFolder = () => {
+    const name = window.prompt("Nom du nouveau dossier :");
+    if (name && name.trim()) {
+      const newFolder = { id: `folder-${Date.now()}`, name: name.trim() };
+      setFolders([...folders, newFolder]);
+      setExpandedFolders(prev => ({ ...prev, [newFolder.id]: true }));
+    }
   };
 
   const handleDeleteNote = (noteId: string) => {
@@ -276,9 +285,11 @@ export default function KbView() {
               setNotes([...notes, newNote]);
               setActiveNote(newNote.id);
               setShowGraph(false);
-            }}>
+            }} title="Nouvelle note">
               <Plus size={16} />
-              Nouvelle note
+            </button>
+            <button className="kb-action-btn" onClick={handleCreateFolder} title="Nouveau dossier">
+              <FolderPlus size={16} />
             </button>
             <button 
               className="kb-action-btn" 
@@ -287,7 +298,6 @@ export default function KbView() {
               style={{ backgroundColor: showGraph ? 'rgba(255,255,255,0.3)' : '' }}
             >
               <Network size={16} />
-              Graphe
             </button>
           </div>
         </div>
