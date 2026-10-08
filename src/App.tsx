@@ -4,6 +4,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './firebase';
 import Login from './pages/Login';
 import Home from './pages/Home';
+import './index.css';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -18,7 +19,11 @@ function App() {
   }, []);
 
   if (loading) {
-    return <div className="min-h-screen bg-[#0b2d30] flex items-center justify-center text-white">Chargement...</div>;
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0b2d30', color: 'white' }}>
+        Chargement...
+      </div>
+    );
   }
 
   return (

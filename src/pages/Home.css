@@ -1,0 +1,32 @@
+.home-container {
+  min-height: 100vh;
+  background-color: #0b2d30;
+  color: white;
+  padding: 2rem;
+}
+
+.home-title {
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.home-text {
+  margin-bottom: 2rem;
+  color: #d1d5db;
+}
+
+.logout-btn {
+  padding: 0.5rem 1.5rem;
+  background-color: white;
+  color: #0b2d30;
+  font-weight: 600;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logout-btn:hover {
+  background-color: #e5e7eb;
+}
