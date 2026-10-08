@@ -46,7 +46,7 @@ function extractMentions(node: any): string[] {
 
 export default function TiptapEditor({ noteId, initialContent, initialYjsState, onChange, currentUser, allNotes, onNoteClick }: TiptapEditorProps) {
   const [setup, setSetup] = useState<{ ydoc: Y.Doc; provider: WebrtcProvider } | null>(null);
-  const [activeUsers, setActiveUsers] = useState<{name: string, color: string}[]>([]);
+  
 
   useEffect(() => {
     // 1. Je crée un nouveau document Yjs vide. C'est lui qui va gérer tous les conflits 
@@ -71,27 +71,7 @@ export default function TiptapEditor({ noteId, initialContent, initialYjsState, 
     // 3. Je me connecte au salon WebRTC (peer-to-peer). 
     const provider = new WebrtcProvider(`topaze-notes-${noteId}`, ydoc);
     
-    provider.awareness.setLocalStateField('user', {
-      name: currentUser.name,
-      color: currentUser.color
-    });
 
-    const updateAwareness = () => {
-      const states = Array.from(provider.awareness.getStates().entries());
-      const users = states
-        .filter(([_, state]: any) => state.user && state.user.name)
-        .map(([clientId, state]: any) => ({
-          id: clientId,
-          name: state.user.name,
-          color: state.user.color
-        }));
-      
-      setActiveUsers(users);
-    };
-
-    provider.awareness.on('change', updateAwareness);
-    updateAwareness();
-    
     setSetup({ ydoc, provider });
 
     // 4. Ultra important : si je change de note, je dois détruire la connexion 
@@ -113,12 +93,12 @@ export default function TiptapEditor({ noteId, initialContent, initialYjsState, 
       currentUser={currentUser}
       allNotes={allNotes}
       onNoteClick={onNoteClick}
-      activeUsers={activeUsers}
+      
     />
   );
 }
 
-function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes, onNoteClick, activeUsers }: any) {
+function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes, onNoteClick, }: any) {
   const notesRef = useRef(allNotes);
   useEffect(() => {
     notesRef.current = allNotes;
@@ -206,21 +186,7 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
 
   return (
     <div className="tiptap-wrapper">
-      {activeUsers && activeUsers.length > 0 && (
-        <div className="presence-avatars-container">
-          <div style={{ color: 'white', marginRight: '1rem', fontSize: '0.8rem', opacity: 0.5 }}>Debug: {activeUsers.length} users</div>
-          {activeUsers.map((u: any) => (
-            <div 
-              key={u.id} 
-              className="presence-avatar" 
-              style={{ backgroundColor: u.color }}
-              title={u.name}
-            >
-              {u.name.charAt(0).toUpperCase()}
-            </div>
-          ))}
-        </div>
-      )}
+
       {editor && (
         <BubbleMenu 
           editor={editor} 
