@@ -3,51 +3,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is logged in
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if the user is the owner of a Knowledge Base
     function isOwner(kbData) {
       return isAuthenticated() && kbData.ownerId == request.auth.uid;
     }
 
-    // Helper function to check if the user is a member (invited) of a Knowledge Base
     function isMember(kbData) {
       return isAuthenticated() && (request.auth.token.email in kbData.members);
     }
 
-    // Helper function to check if the user has access (owner OR member)
     function hasAccess(kbData) {
       return isOwner(kbData) || isMember(kbData);
     }
+    
+    // Security check: ensure string lengths are reasonable to prevent DB stuffing
+    function isReasonableString(text, maxLength) {
+      return text is string && text.size() <= maxLength;
+    }
 
     match /knowledgeBases/{kbId} {
-      // READ: Anyone who is owner or in the members list can read the base
       allow read: if hasAccess(resource.data);
       
-      // CREATE: Any authenticated user can create a base, provided they set themselves as owner
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      
-      // UPDATE: Only the owner can update the base (e.g. to invite members or rename)
-      allow update: if isOwner(resource.data);
-      
-      // DELETE: Only the owner can delete the base
+      // Strict schema validation for Knowledge Bases
+      allow create: if isAuthenticated() 
+                    && request.resource.data.ownerId == request.auth.uid
+                    && isReasonableString(request.resource.data.name, 100)
+                    && request.resource.data.members is list;
+                    
+      allow update: if isOwner(resource.data)
+                    && isReasonableString(request.resource.data.name, 100)
+                    && request.resource.data.members is list;
+                    
       allow delete: if isOwner(resource.data);
       
-      // --------------------------------------------------------------------------------
-      // Sub-collections: Folders and Notes
-      // --------------------------------------------------------------------------------
-      
       match /folders/{folderId} {
-        // READ, CREATE, UPDATE, DELETE: Allowed if the user has access to the parent base
-        allow read, write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data);
+        allow read: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data);
+        allow write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data)
+                     && isReasonableString(request.resource.data.name, 100)
+                     && isReasonableString(request.resource.data.parentId, 100)
+                     && isReasonableString(request.resource.data.authorEmail, 150);
       }
       
       match /notes/{noteId} {
-        // READ, CREATE, UPDATE, DELETE: Allowed if the user has access to the parent base
-        allow read, write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data);
+        allow read: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data);
+        allow write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data)
+                     && isReasonableString(request.resource.data.title, 200)
+                     && isReasonableString(request.resource.data.content, 1048576) // Max 1MB for content
+                     && isReasonableString(request.resource.data.parentId, 100)
+                     && isReasonableString(request.resource.data.authorEmail, 150);
       }
     }
   }
