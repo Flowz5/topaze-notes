@@ -208,6 +208,7 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
     <div className="tiptap-wrapper">
       {activeUsers && activeUsers.length > 0 && (
         <div className="presence-avatars-container">
+          <div style={{ color: 'white', marginRight: '1rem', fontSize: '0.8rem', opacity: 0.5 }}>Debug: {activeUsers.length} users</div>
           {activeUsers.map((u: any) => (
             <div 
               key={u.id} 
