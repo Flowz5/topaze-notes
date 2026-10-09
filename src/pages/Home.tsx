@@ -111,7 +111,7 @@ export default function Home() {
             parentId: subRef.id,
             authorEmail: user.email,
             createdAt: serverTimestamp(),
-            tags: [sub.name.toLowerCase()]
+            tags: sub.name.toLowerCase()
           });
         }
       }
