@@ -1,9 +1,8 @@
-import { structureBtsSio } from "../dataBtsSio";
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp, writeBatch, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { LogOut, Book, Plus, Users, ChevronRight, Database, Loader2, Trash2 } from 'lucide-react';
 import './Home.css';
 
@@ -60,72 +59,6 @@ export default function Home() {
   }, []);
 
   
-  const handleSetupBTS = async () => {
-    const user = auth.currentUser;
-    if (!user || !user.email) return;
-
-    if (!window.confirm("Créer la base BTS SIO avec tous les dossiers et notes ?")) return;
-
-    try {
-      setLoading(true);
-      
-      // 1. Create Base
-      const kbRef = await addDoc(collection(db, 'knowledgeBases'), {
-        name: 'BTS SIO',
-        ownerId: user.uid,
-        members: [user.email],
-        createdAt: serverTimestamp()
-      });
-      const kbId = kbRef.id;
-
-      // 2. Prepare structure
-      const structure = structureBtsSio;
-
-      // 3. Batch insert (Firestore limits to 500 writes per batch, we are far below)
-      const batch = writeBatch(db);
-
-      for (const cat of structure) {
-        // Main folder
-        const catRef = doc(collection(db, 'knowledgeBases', kbId, 'folders'));
-        batch.set(catRef, {
-          name: cat.folder,
-          parentId: null,
-          authorEmail: user.email,
-          createdAt: serverTimestamp()
-        });
-
-        // Subfolders and notes
-        for (const sub of cat.subfolders) {
-          const subRef = doc(collection(db, 'knowledgeBases', kbId, 'folders'));
-          batch.set(subRef, {
-            name: sub.name,
-            parentId: catRef.id,
-            authorEmail: user.email,
-            createdAt: serverTimestamp()
-          });
-
-          const noteRef = doc(collection(db, 'knowledgeBases', kbId, 'notes'));
-          batch.set(noteRef, {
-            title: `Syntaxe et bases : ${sub.name}`,
-            content: `${sub.note}<p><em>Ajoutez vos notes ici...</em></p>`,
-            folderId: subRef.id,
-            authorEmail: user.email,
-            createdAt: serverTimestamp(),
-            tags: sub.name.toLowerCase()
-          });
-        }
-      }
-
-      await batch.commit();
-      alert("Base BTS SIO créée avec succès !");
-      setLoading(false);
-      
-    } catch (error) {
-      console.error(error);
-      alert("Erreur lors de la création de la base BTS SIO.");
-      setLoading(false);
-    }
-  };
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -230,10 +163,6 @@ export default function Home() {
                 <span style={{ fontWeight: 600 }}>Créer une nouvelle base</span>
               </button>
               
-              {/* BOUTON SETUP BTS SIO */}
-              <button className="create-card" onClick={handleSetupBTS} style={{ background: 'rgba(255, 255, 255, 0.05)', borderStyle: 'dashed' }}>
-                <span style={{ fontWeight: 600 }}>🎓 Générer la base BTS SIO</span>
-              </button>
 
             </div>
           </div>
