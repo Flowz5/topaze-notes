@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
-  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Download, FolderPlus, Info, Search
+  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Edit2, Download, FolderPlus, Info, Search
 } from 'lucide-react';
 import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
@@ -248,6 +248,19 @@ export default function KbView() {
     }
   };
 
+  
+  const handleRenameFolder = async (folderId: string, oldName: string) => {
+    if (!id) return;
+    const newName = window.prompt('Nouveau nom du dossier :', oldName);
+    if (!newName || newName.trim() === '' || newName === oldName) return;
+    try {
+      await updateDoc(doc(db, `knowledgeBases/${id}/folders`, folderId), { name: newName.trim() });
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors du renommage du dossier.');
+    }
+  };
+
   const createNoteInFirestore = async (folderId: string | null = null) => {
     if (!id) return;
     try {
@@ -441,6 +454,7 @@ export default function KbView() {
               </div>
               <div style={{ display: 'flex', gap: '0.25rem' }}>
                 <button className="add-note-btn" title="Ajouter un sous-dossier" onClick={(e) => { e.stopPropagation(); handleCreateFolder(folder.id); }}><FolderPlus size={14} /></button>
+                <button className="add-note-btn" title="Renommer le dossier" onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id, folder.name); }}><Edit2 size={14} /></button>
                 <button className="add-note-btn" title="Ajouter une note" onClick={(e) => { e.stopPropagation(); handleAddNoteToFolder(folder.id); }}><Plus size={14} /></button>
                 <button className="delete-note-btn" title="Supprimer le dossier" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}><Trash2 size={14} /></button>
               </div>
