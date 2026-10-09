@@ -107,8 +107,8 @@ export default function Home() {
           const noteRef = doc(collection(db, 'knowledgeBases', kbId, 'notes'));
           batch.set(noteRef, {
             title: `Syntaxe et bases : ${sub.name}`,
-            content: `<h1>${sub.name}</h1><p>${sub.note}</p><p><em>Ajoutez vos notes ici...</em></p>`,
-            parentId: subRef.id,
+            content: `${sub.note}<p><em>Ajoutez vos notes ici...</em></p>`,
+            folderId: subRef.id,
             authorEmail: user.email,
             createdAt: serverTimestamp(),
             tags: sub.name.toLowerCase()

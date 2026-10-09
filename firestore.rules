@@ -55,7 +55,7 @@ service cloud.firestore {
         allow write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data)
                      && isReasonableString(request.resource.data.title, 200)
                      && isReasonableString(request.resource.data.content, 1048576)
-                     && isValidParentId(request.resource.data.parentId)
+                     && isValidParentId(request.resource.data.folderId)
                      && isReasonableString(request.resource.data.authorEmail, 150);
       }
     }
