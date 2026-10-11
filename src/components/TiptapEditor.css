@@ -135,3 +135,30 @@ ul[data-type="taskList"] li[data-checked="true"] > div {
   opacity: 0.6;
 }
 
+@media (max-width: 768px) {
+  .tiptap-wrapper {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .tiptap-editor {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .tiptap-editor h1 { font-size: 1.5rem; }
+  .tiptap-editor h2 { font-size: 1.3rem; }
+  .tiptap-editor h3 { font-size: 1.15rem; }
+
+  .tiptap-editor pre {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tiptap-editor ul,
+  .tiptap-editor ol {
+    padding-left: 1.25rem;
+  }
+}
+
+

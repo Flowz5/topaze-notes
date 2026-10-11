@@ -7,7 +7,8 @@ import {
 } from 'firebase/firestore';
 import { 
   ArrowLeft, Plus, Share2, Network, 
-  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Edit2, Download, FolderPlus, Info, Search
+  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Edit2, Download, FolderPlus, Info, Search,
+  Menu, X
 } from 'lucide-react';
 import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
@@ -53,6 +54,7 @@ export default function KbView() {
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [activeNote, setActiveNote] = useState<string | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   const activeNoteData = notes.find(n => n.id === activeNote);
 
@@ -276,6 +278,7 @@ export default function KbView() {
       });
       setActiveNote(noteRef.id);
       setShowGraph(false);
+      setIsMobileSidebarOpen(false);
       if (folderId) setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
     } catch (err) {
       console.error(err);
@@ -469,7 +472,7 @@ export default function KbView() {
             draggable
             onDragStart={(e) => handleDragStart(e, note.id, 'note')}
             className={`note-item ${activeNote === note.id && !showGraph ? 'active' : ''}`} title={isOwner ? `Créé par : ${note.authorEmail || 'Inconnu'}` : undefined}
-            onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); }}
+            onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); setIsMobileSidebarOpen(false); }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={16} />
@@ -484,8 +487,16 @@ export default function KbView() {
 
   return (
     <div className="kb-layout">
+      {/* MOBILE BACKDROP */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="kb-mobile-backdrop" 
+          onClick={() => setIsMobileSidebarOpen(false)} 
+        />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="kb-sidebar">
+      <aside className={`kb-sidebar ${isMobileSidebarOpen ? 'open' : ''}`}>
         
         <div className="kb-sidebar-header">
           <div className="kb-header-top">
@@ -493,6 +504,13 @@ export default function KbView() {
               <ArrowLeft size={20} />
             </button>
             <h1 className="kb-title" title={baseName}>{baseName}</h1>
+            <button 
+              className="kb-mobile-close-btn" 
+              onClick={() => setIsMobileSidebarOpen(false)} 
+              title="Fermer le menu"
+            >
+              <X size={20} />
+            </button>
           </div>
           
           <div className="kb-actions">
@@ -585,32 +603,31 @@ export default function KbView() {
       {/* MAIN CONTENT */}
       <main className="kb-main">
         <header className="kb-main-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="kb-header-title-container">
+            <button 
+              className="kb-mobile-menu-btn" 
+              onClick={() => setIsMobileSidebarOpen(true)} 
+              title="Ouvrir les dossiers"
+            >
+              <Menu size={20} />
+            </button>
             {showGraph ? (
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Vue Graphe</h2>
+              <h2 className="kb-header-title-text">Vue Graphe</h2>
             ) : activeNoteData ? (
               <input 
                 type="text" 
                 value={activeNoteData.title} 
                 onChange={(e) => updateActiveNote({ title: e.target.value })}
-                style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: 'bold', 
-                  background: 'transparent', 
-                  border: 'none', 
-                  color: 'white',
-                  outline: 'none',
-                  width: '100%'
-                }} 
+                className="kb-header-title-input"
               />
             ) : (
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)' }}>Aucune note sélectionnée</h2>
+              <h2 className="kb-header-title-empty">Aucune note sélectionnée</h2>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          <div className="kb-header-actions-container">
             {activeNoteData && !showGraph && (
               <button 
-                className="export-btn" 
+                className="export-btn kb-header-btn" 
                 onClick={() => {
                   const yaml = `---\ntitle: ${activeNoteData.title}\ndate: ${activeNoteData.date}\ntags: [${activeNoteData.tags}]\n---\n\n`;
                   const fullContent = yaml + activeNoteData.content;
@@ -627,37 +644,35 @@ export default function KbView() {
                 title="Exporter en Markdown"
               >
                 <Download size={16} />
-                Exporter
+                <span className="btn-text">Exporter</span>
               </button>
             )}
             <button 
-              className="logout-btn" 
-              style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+              className="logout-btn kb-header-btn" 
               onClick={() => setIsShareModalOpen(true)}
+              title="Partager"
             >
               <Share2 size={16} />
-              Partager
+              <span className="btn-text">Partager</span>
             </button>
             <button 
-              className="logout-btn" 
-              style={{ padding: '0.5rem', borderRadius: '50%', marginRight: '0.5rem' }}
+              className="logout-btn kb-header-icon-btn" 
               onClick={() => setIsSearchModalOpen(true)}
               title="Rechercher (Cmd+K)"
             >
               <Search size={18} />
             </button>
             <button 
-              className="logout-btn" 
-              style={{ padding: '0.5rem', borderRadius: '50%', marginRight: '0.5rem' }}
+              className="logout-btn kb-header-icon-btn" 
               onClick={() => setIsHelpModalOpen(true)}
               title="Aide & Raccourcis"
             >
               <Info size={18} />
             </button>
             <button 
-              className="logout-btn" 
-              style={{ padding: '0.5rem', borderRadius: '50%' }}
+              className="logout-btn kb-header-icon-btn" 
               onClick={openSettings}
+              title="Paramètres"
             >
               <Settings size={18} />
             </button>
@@ -683,6 +698,7 @@ export default function KbView() {
                   if (node.group === 'note') {
                     setActiveNote(node.id);
                     setShowGraph(false);
+                    setIsMobileSidebarOpen(false);
                   }
                 }}
               />
@@ -718,7 +734,10 @@ export default function KbView() {
                 currentUser={{ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: cursorColor }}
                 onChange={(val, yjsState, mentions) => updateActiveNote({ content: val, yjsState, mentions })}
                 allNotes={notes.map(n => ({ id: n.id, title: n.title }))}
-                onNoteClick={setActiveNote}
+                onNoteClick={(noteId) => {
+                  setActiveNote(noteId);
+                  setIsMobileSidebarOpen(false);
+                }}
               />
               
               {/* BACKLINKS SECTION */}
@@ -731,7 +750,10 @@ export default function KbView() {
                       <button 
                         key={backlink.id}
                         className="backlink-pill"
-                        onClick={() => setActiveNote(backlink.id)}
+                        onClick={() => {
+                          setActiveNote(backlink.id);
+                          setIsMobileSidebarOpen(false);
+                        }}
                         style={{
                           background: 'var(--surface-hover)',
                           border: '1px solid var(--border)',
@@ -883,6 +905,7 @@ export default function KbView() {
                         setActiveNote(note.id);
                         setIsSearchModalOpen(false);
                         setGlobalSearchInput('');
+                        setIsMobileSidebarOpen(false);
                       }}
                       style={{
                         padding: '1rem',

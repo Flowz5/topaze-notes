@@ -125,3 +125,15 @@
 .toggle-link:hover {
   color: white;
 }
+
+@media (max-width: 440px) {
+  .login-form-wrapper {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .login-title {
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+  }
+}
+

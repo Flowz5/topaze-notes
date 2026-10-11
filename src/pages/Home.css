@@ -275,3 +275,59 @@
 .delete-base-btn {
   opacity: 1 !important;
 }
+
+@media (max-width: 640px) {
+  .home-container {
+    padding: 1.25rem 1rem;
+  }
+
+  .home-header {
+    margin-bottom: 2rem;
+    gap: 1rem;
+  }
+
+  .home-title {
+    font-size: 1.5rem;
+  }
+
+  .logout-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .dashboard-grid {
+    gap: 2rem;
+  }
+
+  .kb-card {
+    padding: 1rem;
+  }
+
+  .kb-info {
+    gap: 0.75rem;
+  }
+
+  .kb-icon-wrapper {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .kb-name {
+    font-size: 1rem;
+  }
+
+  .create-card {
+    padding: 1.5rem;
+  }
+
+  .modal-content {
+    padding: 1.75rem 1.25rem;
+    max-width: 95vw;
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+}
+
