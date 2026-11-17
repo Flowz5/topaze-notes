@@ -100,6 +100,16 @@ service cloud.firestore {
         allow create: if hasAccess(kb()) && isValidNote(request.resource.data) && isSignedByMe(request.resource.data);
         allow update: if hasAccess(kb()) && isValidNote(request.resource.data) && authorUnchanged();
         allow delete: if hasAccess(kb());
+
+        // État Yjs de la note, en morceaux binaires (voir src/lib/yjsStorage.ts)
+        match /yjs/{chunkId} {
+          allow read, delete: if hasAccess(kb());
+          allow create, update: if hasAccess(kb())
+                                && chunkId.matches('[0-9]')
+                                && request.resource.data.index is int
+                                && request.resource.data.data is bytes
+                                && request.resource.data.data.size() <= 1000000;
+        }
       }
     }
   }

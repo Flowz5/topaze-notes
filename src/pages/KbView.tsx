@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { 
   doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc, 
-  collection, addDoc, query, orderBy, serverTimestamp 
+  collection, addDoc, query, orderBy, serverTimestamp, writeBatch
 } from 'firebase/firestore';
+import { addYjsStateToBatch, deleteYjsState, YJS_MAX_CHUNKS } from '../lib/yjsStorage';
 import { 
   ArrowLeft, Plus, Share2, Network, 
   Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Edit2, Download, FolderPlus, Info, Search,
@@ -23,7 +24,10 @@ interface Note {
   title: string;
   folderId: string | null;
   content: string;
+  /** Ancien format : état Yjs en base64 (migré vers la sous-collection yjs à la sauvegarde) */
   yjsState?: string;
+  /** Local uniquement : état Yjs en attente de sauvegarde */
+  yjs?: Uint8Array;
   date: string;
   tags: string;
   updatedAt?: Date;
@@ -64,10 +68,21 @@ export default function KbView() {
   // Sauvegarde Firestore : les modifs locales sont cumulées puis envoyées (1s après la
   // dernière frappe, et au moins toutes les 2s). Tant que Firestore ne les a pas confirmées,
   // elles restent prioritaires sur les snapshots, sinon des lettres tapées "sautent".
+  // Nombre de morceaux Yjs connus par note (pour supprimer ceux en trop quand l'état rétrécit)
+  const yjsChunkCountsRef = useRef<Record<string, number>>({});
   const saveNote = useCallback(async (noteId: string, updates: Partial<Note>) => {
     if (!id) return;
-    const noteRef = doc(db, `knowledgeBases/${id}/notes/${noteId}`);
-    await updateDoc(noteRef, { ...updates, updatedAt: serverTimestamp() });
+    const { yjs, ...fields } = updates;
+    const batch = writeBatch(db);
+    batch.update(doc(db, `knowledgeBases/${id}/notes/${noteId}`), { ...fields, updatedAt: serverTimestamp() });
+    let chunkCount: number | undefined;
+    if (yjs) {
+      // Première sauvegarde de la session : on ne connaît pas l'existant, on nettoie tout
+      const previous = yjsChunkCountsRef.current[noteId] ?? YJS_MAX_CHUNKS;
+      chunkCount = addYjsStateToBatch(batch, db, id, noteId, yjs, previous);
+    }
+    await batch.commit();
+    if (chunkCount !== undefined) yjsChunkCountsRef.current[noteId] = chunkCount;
   }, [id]);
   const { applyLocalEdit, mergeWithLocal } = usePendingEdits<Note>(saveNote);
 
@@ -241,6 +256,7 @@ export default function KbView() {
     // Delete all notes inside this folder
     const folderNotes = notes.filter(n => n.folderId === fid);
     for (const note of folderNotes) {
+      await deleteYjsState(db, id!, note.id);
       await deleteDoc(doc(db, `knowledgeBases/${id}/notes/${note.id}`));
       if (activeNote === note.id) setActiveNote(null);
     }
@@ -307,8 +323,9 @@ export default function KbView() {
     if (!id) return;
     if (window.confirm('Supprimer cette note ?')) {
       try {
-        await deleteDoc(doc(db, `knowledgeBases/${id}/notes/${noteId}`));
         if (activeNote === noteId) setActiveNote(null);
+        await deleteYjsState(db, id, noteId);
+        await deleteDoc(doc(db, `knowledgeBases/${id}/notes/${noteId}`));
       } catch (err) {
         console.error(err);
       }
@@ -726,11 +743,12 @@ export default function KbView() {
               </div>
               <TiptapEditor
                 key={activeNoteData.id}
+                kbId={id!}
                 noteId={activeNoteData.id}
                 initialContent={activeNoteData.content}
-                initialYjsState={activeNoteData.yjsState}
+                legacyYjsState={activeNoteData.yjsState}
                 currentUser={{ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: cursorColor }}
-                onChange={(val, yjsState, mentions) => updateActiveNote({ content: val, yjsState, mentions })}
+                onChange={(val, yjs, mentions) => updateActiveNote({ content: val, yjs, mentions })}
                 allNotes={notes.map(n => ({ id: n.id, title: n.title }))}
                 onNoteClick={(noteId) => {
                   setActiveNote(noteId);

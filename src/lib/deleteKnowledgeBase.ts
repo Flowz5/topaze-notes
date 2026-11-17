@@ -1,3 +1,4 @@
+import { deleteYjsState } from './yjsStorage';
 import { collection, doc, getDoc, getDocs, writeBatch, deleteDoc, type Firestore } from 'firebase/firestore';
 
 // Firestore limite un batch à 500 opérations
@@ -19,6 +20,10 @@ export async function deleteKnowledgeBase(db: Firestore, kbId: string, uid: stri
   if (base.data().ownerId !== uid) {
     throw new Error('Seul le propriétaire peut supprimer cette base.');
   }
+
+  // Les notes ont elles-mêmes une sous-collection (état Yjs) à vider d'abord
+  const notes = await getDocs(collection(db, `knowledgeBases/${kbId}/notes`));
+  for (const note of notes.docs) await deleteYjsState(db, kbId, note.id);
 
   for (const sub of ['notes', 'folders']) {
     const snapshot = await getDocs(collection(db, `knowledgeBases/${kbId}/${sub}`));
