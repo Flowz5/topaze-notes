@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { authErrorMessage } from '../lib/authErrors';
 import Brand from '../components/Brand';
 import ThemeToggle from '../components/ThemeToggle';
 import './Login.css';
@@ -13,11 +14,13 @@ export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     setIsSubmitting(true);
 
     try {
@@ -27,8 +30,33 @@ export default function Login() {
         await signInWithEmailAndPassword(auth, email, password);
       }
       navigate('/');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    setError('');
+    setInfo('');
+    if (!email.trim()) {
+      setError('Indique ton email ci-dessus, puis clique à nouveau sur « Mot de passe oublié ? ».');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      auth.languageCode = 'fr'; // email de réinitialisation en français
+      await sendPasswordResetEmail(auth, email.trim());
+      // Message volontairement neutre : on ne révèle pas si un compte existe pour cet email
+      setInfo(`Si un compte existe pour ${email.trim()}, un email de réinitialisation vient d'être envoyé.`);
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'auth/user-not-found') {
+        setInfo(`Si un compte existe pour ${email.trim()}, un email de réinitialisation vient d'être envoyé.`);
+      } else {
+        setError(authErrorMessage(err));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -56,7 +84,8 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleAuth} className="login-form">
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" role="alert">{error}</div>}
+          {info && <div className="info-message" role="status">{info}</div>}
 
           <div>
             <label className="field-label" htmlFor="login-email">Email</label>
@@ -76,7 +105,14 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="field-label" htmlFor="login-password">Mot de passe</label>
+            <div className="field-label-row">
+              <label className="field-label" htmlFor="login-password">Mot de passe</label>
+              {!isRegistering && (
+                <button type="button" className="forgot-link" onClick={handleResetPassword} disabled={isSubmitting}>
+                  Mot de passe oublié ?
+                </button>
+              )}
+            </div>
             <div className="field">
               <span className="field-icon"><Lock size={18} /></span>
               <input
@@ -108,7 +144,7 @@ export default function Login() {
           {isRegistering ? 'Déjà un compte ?' : 'Pas encore de compte ?'}{' '}
           <button
             type="button"
-            onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
+            onClick={() => { setIsRegistering(!isRegistering); setError(''); setInfo(''); }}
             className="toggle-link"
           >
             {isRegistering ? 'Se connecter' : "S'inscrire"}

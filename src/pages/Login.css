@@ -36,6 +36,7 @@
 .login-card {
   position: relative;
   width: 100%;
+  min-width: 0;
   max-width: 420px;
   padding: 2.25rem;
   background: var(--bg-elevated);
@@ -69,13 +70,55 @@
   gap: 1.1rem;
 }
 
+.error-message,
+.info-message {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  /* un message sans espaces (ex. code d'erreur) ne doit pas élargir la carte hors de l'écran */
+  overflow-wrap: anywhere;
+}
+
 .error-message {
   background-color: var(--danger-soft);
   border: 1px solid var(--danger);
   color: var(--danger);
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.85rem;
+}
+
+.info-message {
+  background-color: var(--primary-soft);
+  border: 1px solid var(--primary-ring);
+  color: var(--text);
+}
+
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.forgot-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.forgot-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.forgot-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .submit-btn {
