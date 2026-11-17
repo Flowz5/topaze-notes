@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { LogOut, Book, Plus, Users, ChevronRight, Database, Loader2, Trash2, Share2 } from 'lucide-react';
 import Brand from '../components/Brand';
 import ThemeToggle from '../components/ThemeToggle';
+import { deleteKnowledgeBase } from '../lib/deleteKnowledgeBase';
 import './Home.css';
 
 type KnowledgeBase = {
@@ -93,15 +94,13 @@ export default function Home() {
     }
   };
 
-  // Et voilà le fameux bouton pour supprimer définitivement une base !
-  // (Faut faire gaffe car ça supprime juste la base, il faudra faire une fonction 
-  // en backend (Cloud Functions) ou côté client pour supprimer toutes les notes 
-  // à l'intérieur pour pas laisser de déchets dans Firebase).
+  // Suppression définitive d'une base, avec toutes ses notes et dossiers
+  // (voir lib/deleteKnowledgeBase.ts).
   const handleDeleteBase = async (e: React.MouseEvent, kbId: string) => {
     e.stopPropagation(); // Pour éviter de déclencher l'ouverture de la base en même temps !
     if (window.confirm("Êtes-vous sûr de vouloir supprimer définitivement cette base de connaissances ? Toutes les notes et les dossiers à l'intérieur seront perdus.")) {
       try {
-        await deleteDoc(doc(db, 'knowledgeBases', kbId));
+        await deleteKnowledgeBase(db, kbId, auth.currentUser!.uid);
       } catch (error) {
         console.error("Erreur lors de la suppression:", error);
         alert("Impossible de supprimer la base.");

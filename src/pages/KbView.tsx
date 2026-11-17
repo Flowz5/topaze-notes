@@ -15,6 +15,7 @@ import ForceGraph2D from 'react-force-graph-2d';
 import ThemeToggle from '../components/ThemeToggle';
 import { usePendingEdits } from '../hooks/usePendingEdits';
 import { useTheme } from '../theme/useTheme';
+import { deleteKnowledgeBase } from '../lib/deleteKnowledgeBase';
 import './KbView.css';
 
 interface Note {
@@ -411,7 +412,7 @@ export default function KbView() {
     if (!id || !isOwner) return;
     if (window.confirm("Es-tu sûr de vouloir supprimer définitivement cette base ?")) {
       try {
-        await deleteDoc(doc(db, 'knowledgeBases', id));
+        await deleteKnowledgeBase(db, id, currentUser!.uid);
         navigate('/');
       } catch (err) {
         alert("Erreur lors de la suppression.");
