@@ -1,4 +1,4 @@
-import gem from '../assets/gem.png';
+import gem from '../assets/gem.svg';
 
 export default function Brand({ size = 'md' }: { size?: 'md' | 'lg' }) {
   return (

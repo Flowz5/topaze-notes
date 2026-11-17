@@ -11,18 +11,17 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: { maximumFileSizeToCacheInBytes: 5000000 },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Topaze Notes',
         short_name: 'Topaze',
         description: 'Base de connaissances connectée',
         theme_color: '#f27f22',
+        background_color: '#faf7f3',
         icons: [
-          {
-            src: 'https://vitejs.dev/logo.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml'
-          }
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' }
         ]
       }
     })
