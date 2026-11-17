@@ -1,22 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="topaze" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#fed7aa"/>
-      <stop offset="0.45" stop-color="#fb9a4b"/>
-      <stop offset="1" stop-color="#c2540b"/>
-    </linearGradient>
-    <mask id="cuts">
-      <rect width="512" height="512" fill="#fff"/>
-      <g stroke="#000" stroke-width="18" fill="none">
-        <path d="M256 0V168M256 344V512M0 256H168M344 256H512"/>
-        <path d="M256 168 344 256 256 344 168 256Z"/>
-      </g>
-    </mask>
-  </defs>
-  <g mask="url(#cuts)">
-    <path d="M256 24 488 256 256 488 24 256Z" fill="url(#topaze)"/>
-    <path d="M256 24 24 256H256Z" fill="#fff" fill-opacity="0.22"/>
-    <path d="M256 488 488 256H256Z" fill="#000" fill-opacity="0.12"/>
-    <path d="M256 180 332 256 256 332 180 256Z" fill="#fff" fill-opacity="0.18"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 36 512 512">
+  <g stroke-width="1.5" stroke-linejoin="round">
+    <polygon points="36,196 170,108 146,196" fill="#fdba74" stroke="#fdba74"/>
+    <polygon points="170,108 256,196 146,196" fill="#fed7aa" stroke="#fed7aa"/>
+    <polygon points="170,108 256,108 256,196" fill="#fff3e3" stroke="#fff3e3"/>
+    <polygon points="256,108 342,108 256,196" fill="#ffe2c2" stroke="#ffe2c2"/>
+    <polygon points="342,108 366,196 256,196" fill="#fb9a4b" stroke="#fb9a4b"/>
+    <polygon points="342,108 476,196 366,196" fill="#f27f22" stroke="#f27f22"/>
+    <polygon points="36,196 146,196 146,336" fill="#f27f22" stroke="#f27f22"/>
+    <polygon points="146,196 186,330 146,336" fill="#db6510" stroke="#db6510"/>
+    <polygon points="146,196 256,196 186,330" fill="#fb9a4b" stroke="#fb9a4b"/>
+    <polygon points="256,196 326,330 186,330" fill="#f27f22" stroke="#f27f22"/>
+    <polygon points="186,330 326,330 256,476" fill="#b44d0c" stroke="#b44d0c"/>
+    <polygon points="146,336 186,330 256,476" fill="#8f3d10" stroke="#8f3d10"/>
+    <polygon points="256,196 366,196 326,330" fill="#db6510" stroke="#db6510"/>
+    <polygon points="366,196 366,336 326,330" fill="#b44d0c" stroke="#b44d0c"/>
+    <polygon points="366,196 476,196 366,336" fill="#8f3d10" stroke="#8f3d10"/>
+    <polygon points="326,330 366,336 256,476" fill="#6b2d0c" stroke="#6b2d0c"/>
   </g>
 </svg>
