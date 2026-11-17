@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
-import debounce from 'lodash/debounce';
 import ThemeToggle from '../components/ThemeToggle';
+import { usePendingEdits } from '../hooks/usePendingEdits';
 import { useTheme } from '../theme/useTheme';
 import './KbView.css';
 
@@ -60,27 +60,23 @@ export default function KbView() {
   
   const activeNoteData = notes.find(n => n.id === activeNote);
 
-  // Debounced update for Firestore
-  const debouncedUpdateNote = useCallback(
-    debounce(async (noteId: string, kbId: string, updates: Partial<Note>) => {
-      try {
-        const noteRef = doc(db, `knowledgeBases/${kbId}/notes/${noteId}`);
-        await updateDoc(noteRef, { ...updates, updatedAt: serverTimestamp() });
-      } catch (err) {
-        console.error("Erreur de sauvegarde:", err);
-      }
-    }, 1000, { maxWait: 2000 }), // Sauvegarde forcée toutes les 2s max même si on n'arrête pas de taper !
-    []
-  );
+  // Sauvegarde Firestore : les modifs locales sont cumulées puis envoyées (1s après la
+  // dernière frappe, et au moins toutes les 2s). Tant que Firestore ne les a pas confirmées,
+  // elles restent prioritaires sur les snapshots, sinon des lettres tapées "sautent".
+  const saveNote = useCallback(async (noteId: string, updates: Partial<Note>) => {
+    if (!id) return;
+    const noteRef = doc(db, `knowledgeBases/${id}/notes/${noteId}`);
+    await updateDoc(noteRef, { ...updates, updatedAt: serverTimestamp() });
+  }, [id]);
+  const { applyLocalEdit, mergeWithLocal } = usePendingEdits<Note>(saveNote);
 
   const updateActiveNote = (updates: Partial<Note>) => {
     if (!activeNote || !id) return;
-    
-    // Update local state immediately for fast UI
+
+    // Mise à jour locale immédiate pour une UI réactive
     setNotes(prev => prev.map(n => n.id === activeNote ? { ...n, ...updates } : n));
-    
-    // Send to Firestore with debounce
-    debouncedUpdateNote(activeNote, id, updates);
+
+    applyLocalEdit(activeNote, updates);
   };
 
   // Graph View State
@@ -190,7 +186,7 @@ export default function KbView() {
         id: doc.id,
         ...doc.data()
       })) as Note[];
-      setNotes(notesData);
+      setNotes(mergeWithLocal(notesData));
     }, console.error);
 
     return () => {
@@ -198,7 +194,7 @@ export default function KbView() {
       unsubscribeFolders();
       unsubscribeNotes();
     };
-  }, [id]);
+  }, [id, mergeWithLocal]);
 
   useEffect(() => {
     if (showGraph && graphContainerRef.current) {
