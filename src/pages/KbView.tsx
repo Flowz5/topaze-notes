@@ -17,6 +17,7 @@ import ForceGraph2D from 'react-force-graph-2d';
 import ThemeToggle from '../components/ThemeToggle';
 import { usePendingEdits } from '../hooks/usePendingEdits';
 import { useTheme } from '../theme/useTheme';
+import { useDialogs } from '../components/dialogs/useDialogs';
 import { deleteKnowledgeBase } from '../lib/deleteKnowledgeBase';
 import './KbView.css';
 
@@ -145,6 +146,7 @@ export default function KbView() {
 
   const currentUser = auth.currentUser;
   const { theme } = useTheme();
+  const dialogs = useDialogs();
 
   // Le graphe est dessiné dans un canvas : je lis les couleurs du thème courant
   // directement depuis les variables CSS pour qu'il suive le mode clair/sombre.
@@ -243,11 +245,16 @@ export default function KbView() {
 
   const handleCreateFolder = async (parentId: string | null = null) => {
     if (!id) return;
-    const name = window.prompt("Nom du nouveau dossier :");
-    if (name && name.trim()) {
+    const name = await dialogs.prompt({
+      title: parentId ? 'Nouveau sous-dossier' : 'Nouveau dossier',
+      label: 'Nom du dossier',
+      placeholder: 'Ex : Réseaux',
+      confirmLabel: 'Créer',
+    });
+    if (name) {
       try {
         await addDoc(collection(db, `knowledgeBases/${id}/folders`), {
-          name: name.trim(),
+          name,
           parentId,
           createdAt: serverTimestamp(),
           authorEmail: auth.currentUser?.email || 'Inconnu'
@@ -257,6 +264,7 @@ export default function KbView() {
         }
       } catch (err) {
         console.error(err);
+        dialogs.toast('Impossible de créer le dossier.', 'error');
       }
     }
   };
@@ -280,11 +288,19 @@ export default function KbView() {
 
   const handleDeleteFolder = async (folderId: string) => {
     if (!id) return;
-    if (window.confirm('Supprimer ce dossier et toutes les notes/sous-dossiers qu\'il contient ?')) {
+    const folder = folders.find(f => f.id === folderId);
+    const ok = await dialogs.confirm({
+      title: `Supprimer « ${folder?.name ?? 'ce dossier'} » ?`,
+      message: 'Le dossier, ses sous-dossiers et toutes les notes qu\'ils contiennent seront supprimés définitivement.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (ok) {
       try {
         await deleteFolderRecursive(folderId);
       } catch (err) {
         console.error(err);
+        dialogs.toast('Impossible de supprimer le dossier.', 'error');
       }
     }
   };
@@ -292,13 +308,18 @@ export default function KbView() {
   
   const handleRenameFolder = async (folderId: string, oldName: string) => {
     if (!id) return;
-    const newName = window.prompt('Nouveau nom du dossier :', oldName);
-    if (!newName || newName.trim() === '' || newName === oldName) return;
+    const newName = await dialogs.prompt({
+      title: 'Renommer le dossier',
+      label: 'Nouveau nom',
+      defaultValue: oldName,
+      confirmLabel: 'Renommer',
+    });
+    if (!newName || newName === oldName) return;
     try {
-      await updateDoc(doc(db, `knowledgeBases/${id}/folders`, folderId), { name: newName.trim() });
+      await updateDoc(doc(db, `knowledgeBases/${id}/folders`, folderId), { name: newName });
     } catch (err) {
       console.error(err);
-      alert('Erreur lors du renommage du dossier.');
+      dialogs.toast('Impossible de renommer le dossier.', 'error');
     }
   };
 
@@ -321,6 +342,7 @@ export default function KbView() {
       if (folderId) setExpandedFolders(prev => ({ ...prev, [folderId]: true }));
     } catch (err) {
       console.error(err);
+      dialogs.toast('Impossible de créer la note.', 'error');
     }
   };
 
@@ -330,13 +352,21 @@ export default function KbView() {
 
   const handleDeleteNote = async (noteId: string) => {
     if (!id) return;
-    if (window.confirm('Supprimer cette note ?')) {
+    const note = notes.find(n => n.id === noteId);
+    const ok = await dialogs.confirm({
+      title: `Supprimer « ${note?.title || 'cette note'} » ?`,
+      message: 'Cette action est définitive.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (ok) {
       try {
         if (activeNote === noteId) setActiveNote(null);
         await deleteYjsState(db, id, noteId);
         await deleteDoc(doc(db, `knowledgeBases/${id}/notes/${noteId}`));
       } catch (err) {
         console.error(err);
+        dialogs.toast('Impossible de supprimer la note.', 'error');
       }
     }
   };
@@ -388,7 +418,8 @@ export default function KbView() {
       await updateDoc(docRef, { members: arrayUnion(inviteEmail.trim().toLowerCase()) });
       setInviteEmail('');
     } catch (err) {
-      alert("Erreur lors de l'invitation.");
+      console.error(err);
+      dialogs.toast("Impossible d'inviter ce membre.", 'error');
     }
   };
 
@@ -399,7 +430,8 @@ export default function KbView() {
       const docRef = doc(db, 'knowledgeBases', id);
       await updateDoc(docRef, { members: arrayRemove(email) });
     } catch (err) {
-      alert("Erreur lors de la suppression.");
+      console.error(err);
+      dialogs.toast('Impossible de retirer ce membre.', 'error');
     }
   };
 
@@ -430,30 +462,45 @@ export default function KbView() {
       await updateDoc(doc(db, 'knowledgeBases', id), { name: renameInput.trim() });
       setIsSettingsModalOpen(false);
     } catch (err) {
-      alert("Erreur lors du renommage.");
+      console.error(err);
+      dialogs.toast('Impossible de renommer la base.', 'error');
     }
   };
 
   const handleDeleteBase = async () => {
     if (!id || !isOwner) return;
-    if (window.confirm("Es-tu sûr de vouloir supprimer définitivement cette base ?")) {
+    const ok = await dialogs.confirm({
+      title: `Supprimer « ${baseData?.name} » ?`,
+      message: 'La base, ses dossiers et toutes ses notes seront supprimés définitivement, pour tous les membres.',
+      confirmLabel: 'Supprimer la base',
+      danger: true,
+    });
+    if (ok) {
       try {
         await deleteKnowledgeBase(db, id, currentUser!.uid);
         navigate('/');
       } catch (err) {
-        alert("Erreur lors de la suppression.");
+        console.error(err);
+        dialogs.toast('Impossible de supprimer la base.', 'error');
       }
     }
   };
 
   const handleLeaveBase = async () => {
     if (!id || !currentUser?.email) return;
-    if (window.confirm("Es-tu sûr de vouloir quitter cette base ?")) {
+    const ok = await dialogs.confirm({
+      title: `Quitter « ${baseData?.name} » ?`,
+      message: "Tu n'y auras plus accès, sauf si le propriétaire t'invite à nouveau.",
+      confirmLabel: 'Quitter la base',
+      danger: true,
+    });
+    if (ok) {
       try {
         await updateDoc(doc(db, 'knowledgeBases', id), { members: arrayRemove(currentUser.email) });
         navigate('/');
       } catch (err) {
-        alert("Erreur en quittant la base.");
+        console.error(err);
+        dialogs.toast('Impossible de quitter la base.', 'error');
       }
     }
   };

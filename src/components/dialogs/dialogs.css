@@ -1,0 +1,84 @@
+.dialog .modal-title {
+  margin-bottom: 0.75rem;
+}
+
+.dialog .modal-text {
+  margin-bottom: 0.25rem;
+}
+
+.dialog .field-label {
+  margin-top: 0.5rem;
+}
+
+.btn-danger-solid {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+
+.btn-danger-solid:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* Toasts */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(420px, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem 0.75rem 0.75rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  animation: pop-in 0.25s var(--ease);
+}
+
+.toast > svg {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.toast-error > svg { color: var(--danger); }
+.toast-success > svg { color: #16a34a; }
+.toast-info > svg { color: var(--primary); }
+.toast-error { border-color: var(--danger); }
+
+.toast-message {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}

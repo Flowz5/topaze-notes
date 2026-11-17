@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import KbView from './pages/KbView';
 import { Loader2 } from 'lucide-react';
 import { ThemeProvider } from './theme/ThemeContext';
+import { DialogsProvider } from './components/dialogs/DialogsProvider';
 import Brand from './components/Brand';
 import './index.css';
 
@@ -35,6 +36,7 @@ function App() {
 
   return (
     <ThemeProvider>
+    <DialogsProvider>
     <BrowserRouter>
       <Routes>
         <Route 
@@ -52,6 +54,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </DialogsProvider>
     </ThemeProvider>
   );
 }

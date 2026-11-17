@@ -5,6 +5,7 @@ import { signOut } from 'firebase/auth';
 import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { LogOut, Book, Plus, Users, ChevronRight, Database, Loader2, Trash2, Share2 } from 'lucide-react';
 import Brand from '../components/Brand';
+import { useDialogs } from '../components/dialogs/useDialogs';
 import ThemeToggle from '../components/ThemeToggle';
 import { deleteKnowledgeBase } from '../lib/deleteKnowledgeBase';
 import './Home.css';
@@ -18,6 +19,7 @@ type KnowledgeBase = {
 
 export default function Home() {
   const navigate = useNavigate();
+  const dialogs = useDialogs();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newBaseName, setNewBaseName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -53,13 +55,13 @@ export default function Home() {
       setLoading(false);
     }, (error) => {
       console.error("Erreur Firestore (Permissions ?) :", error);
-      alert("Impossible de lire les bases. Vérifie les règles Firestore.");
+      dialogs.toast('Impossible de charger tes bases. Réessaie dans un instant.', 'error');
       setLoading(false);
     });
 
     // Pas de fuite de mémoire : on arrête d'écouter si on change de page
     return () => unsubscribe();
-  }, []);
+  }, [dialogs]);
 
   
 
@@ -88,7 +90,7 @@ export default function Home() {
       setNewBaseName('');
     } catch (error) {
       console.error("Erreur lors de la création de la base:", error);
-      alert("Une erreur est survenue lors de la création.");
+      dialogs.toast('Impossible de créer la base.', 'error');
     } finally {
       setIsCreating(false);
     }
@@ -98,12 +100,19 @@ export default function Home() {
   // (voir lib/deleteKnowledgeBase.ts).
   const handleDeleteBase = async (e: React.MouseEvent, kbId: string) => {
     e.stopPropagation(); // Pour éviter de déclencher l'ouverture de la base en même temps !
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer définitivement cette base de connaissances ? Toutes les notes et les dossiers à l'intérieur seront perdus.")) {
+    const base = myBases.find(b => b.id === kbId);
+    const ok = await dialogs.confirm({
+      title: `Supprimer « ${base?.name ?? 'cette base'} » ?`,
+      message: 'La base, ses dossiers et toutes ses notes seront supprimés définitivement, pour tous les membres.',
+      confirmLabel: 'Supprimer la base',
+      danger: true,
+    });
+    if (ok) {
       try {
         await deleteKnowledgeBase(db, kbId, auth.currentUser!.uid);
       } catch (error) {
         console.error("Erreur lors de la suppression:", error);
-        alert("Impossible de supprimer la base.");
+        dialogs.toast('Impossible de supprimer la base.', 'error');
       }
     }
   };
