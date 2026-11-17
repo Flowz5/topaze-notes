@@ -12,6 +12,16 @@ import 'highlight.js/styles/atom-one-dark.css';
 
 const lowlight = createLowlight(common);
 
+// Origine donnée aux mises à jour Yjs reçues de Firestore (déjà sauvegardées)
+const FIRESTORE_ORIGIN = 'firestore';
+// Pause de frappe avant de remonter les modifs (et délai max pendant une frappe continue)
+const LOCAL_CHANGE_WAIT = 300;
+const LOCAL_CHANGE_MAX_WAIT = 1000;
+
+// Une modif est "locale" si elle vient de l'éditeur (y-prosemirror) ou d'un annuler/rétablir.
+// Les autres (WebRTC, Firestore) ont déjà été sauvegardées par leur auteur.
+const isLocalOrigin = (origin: unknown) => origin === ySyncPluginKey || origin instanceof Y.UndoManager;
+
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import Collaboration from '@tiptap/extension-collaboration';
@@ -19,6 +29,8 @@ import Mention from '@tiptap/extension-mention';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import getSuggestionConfig from './mentionSuggestion';
+import { ySyncPluginKey } from '@tiptap/y-tiptap';
+import debounce from 'lodash/debounce';
 import { db } from '../firebase';
 import { decodeLegacyYjsState, loadYjsState, subscribeYjsState } from '../lib/yjsStorage';
 import './TiptapEditor.css';
@@ -29,7 +41,8 @@ interface TiptapEditorProps {
   initialContent: string;
   /** Ancien format (base64 dans la note), utilisé seulement si la sous-collection est vide */
   legacyYjsState?: string;
-  onChange: (markdown: string, yjsState: Uint8Array, mentions: string[]) => void;
+  /** noteId explicite : l'envoi peut arriver après qu'on a changé de note */
+  onChange: (noteId: string, markdown: string, yjsState: Uint8Array, mentions: string[]) => void;
   currentUser: { name: string, color: string };
   allNotes: { id: string, title: string }[];
   onNoteClick: (noteId: string) => void;
@@ -51,6 +64,8 @@ function extractMentions(node: any): string[] {
 
 function TiptapEditor({ kbId, noteId, initialContent, legacyYjsState, onChange, currentUser, allNotes, onNoteClick }: TiptapEditorProps) {
   const [setup, setSetup] = useState<{ ydoc: Y.Doc; provider: WebrtcProvider; hasState: boolean } | null>(null);
+  // Fourni par EditorInner : envoie immédiatement les modifs en attente
+  const flushRef = useRef<(() => void) | null>(null);
   // L'ancien état n'est lu qu'au montage : ensuite la sous-collection fait foi
   const legacyRef = useRef(legacyYjsState);
 
@@ -84,7 +99,7 @@ function TiptapEditor({ kbId, noteId, initialContent, legacyYjsState, onChange, 
       // 4. Je récupère aussi ce que les autres sauvegardent (si on n'est pas connectés en P2P)
       unsubscribe = subscribeYjsState(db, kbId, noteId, (remote) => {
         try {
-          Y.applyUpdate(ydoc, remote);
+          Y.applyUpdate(ydoc, remote, FIRESTORE_ORIGIN);
         } catch (e) {
           console.error('Erreur lors de la mise à jour Yjs distante', e);
         }
@@ -95,6 +110,9 @@ function TiptapEditor({ kbId, noteId, initialContent, legacyYjsState, onChange, 
     // 5. Si je change de note, je détruis tout proprement
     return () => {
       cancelled = true;
+      // Avant de détruire le document, j'envoie ce qui n'a pas encore été remonté
+      flushRef.current?.();
+      flushRef.current = null;
       unsubscribe?.();
       provider?.destroy();
       ydoc.destroy();
@@ -108,7 +126,9 @@ function TiptapEditor({ kbId, noteId, initialContent, legacyYjsState, onChange, 
     <EditorInner
       ydoc={setup.ydoc}
       provider={setup.provider}
+      noteId={noteId}
       hasState={setup.hasState}
+      flushRef={flushRef}
       initialContent={initialContent}
       onChange={onChange}
       currentUser={currentUser}
@@ -118,7 +138,7 @@ function TiptapEditor({ kbId, noteId, initialContent, legacyYjsState, onChange, 
   );
 }
 
-function EditorInner({ ydoc, hasState, initialContent, onChange, allNotes, onNoteClick, }: any) {
+function EditorInner({ ydoc, noteId, hasState, flushRef, initialContent, onChange, allNotes, onNoteClick, }: any) {
   const notesRef = useRef(allNotes);
   const onChangeRef = useRef(onChange);
   const onNoteClickRef = useRef(onNoteClick);
@@ -173,15 +193,40 @@ function EditorInner({ ydoc, hasState, initialContent, onChange, allNotes, onNot
   const editor = useEditor({
     extensions,
     editorProps,
-    onUpdate: ({ editor }) => {
-      // @ts-ignore
-      const markdown = editor.storage.markdown.getMarkdown();
-      
+  });
+
+  // Remontée des modifications vers la page (sauvegarde, recherche, backlinks).
+  // Avant : à chaque frappe, markdown complet + encodage Yjs + mentions, même pour les
+  // changements venus des autres (ou de la synchro initiale, pendant le rendu React).
+  // Maintenant : seulement pour les modifs locales, et après une courte pause de frappe.
+  useEffect(() => {
+    if (!editor) return;
+    let dirty = false;
+    const emit = () => {
+      if (!dirty || editor.isDestroyed) return;
+      dirty = false;
+      // @ts-expect-error -- stockage ajouté par l'extension tiptap-markdown
+      const markdown: string = editor.storage.markdown.getMarkdown();
       const state = Y.encodeStateAsUpdate(ydoc);
       const mentions = Array.from(new Set(extractMentions(editor.getJSON())));
-      onChangeRef.current(markdown, state, mentions);
-    },
-  });
+      onChangeRef.current(noteId, markdown, state, mentions);
+    };
+    const scheduled = debounce(emit, LOCAL_CHANGE_WAIT, { maxWait: LOCAL_CHANGE_MAX_WAIT });
+    const flush = () => { scheduled.cancel(); emit(); };
+
+    const onDocUpdate = (_update: Uint8Array, origin: unknown) => {
+      if (!isLocalOrigin(origin)) return;
+      dirty = true;
+      scheduled();
+    };
+    ydoc.on('update', onDocUpdate);
+    flushRef.current = flush;
+    return () => {
+      ydoc.off('update', onDocUpdate);
+      flush();
+      if (flushRef.current === flush) flushRef.current = null;
+    };
+  }, [editor, ydoc, noteId, flushRef]);
 
   // Note jamais ouverte dans l'éditeur (ex. note générée) : on part du contenu markdown
   useEffect(() => {

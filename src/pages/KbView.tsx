@@ -87,13 +87,17 @@ export default function KbView() {
   }, [id]);
   const { applyLocalEdit, mergeWithLocal } = usePendingEdits<Note>(saveNote);
 
-  const updateActiveNote = (updates: Partial<Note>) => {
-    if (!activeNote || !id) return;
+  const updateNote = (noteId: string, updates: Partial<Note>) => {
+    if (!id) return;
 
     // Mise à jour locale immédiate pour une UI réactive
-    setNotes(prev => prev.map(n => n.id === activeNote ? { ...n, ...updates } : n));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ...updates } : n));
 
-    applyLocalEdit(activeNote, updates);
+    applyLocalEdit(noteId, updates);
+  };
+
+  const updateActiveNote = (updates: Partial<Note>) => {
+    if (activeNote) updateNote(activeNote, updates);
   };
 
   // Graph View State
@@ -474,11 +478,11 @@ export default function KbView() {
   // la dernière version (sinon le mémo ne servirait à rien, ou on figerait des valeurs périmées).
   const latest = useRef({
     handleDragStart, handleDragOver, handleDrop, toggleFolder, handleCreateFolder, handleRenameFolder,
-    handleAddNoteToFolder, handleDeleteFolder, handleDeleteNote, updateActiveNote,
+    handleAddNoteToFolder, handleDeleteFolder, handleDeleteNote, updateNote,
   });
   latest.current = {
     handleDragStart, handleDragOver, handleDrop, toggleFolder, handleCreateFolder, handleRenameFolder,
-    handleAddNoteToFolder, handleDeleteFolder, handleDeleteNote, updateActiveNote,
+    handleAddNoteToFolder, handleDeleteFolder, handleDeleteNote, updateNote,
   };
   const treeActions = useMemo<TreeActions>(() => ({
     openNote: (noteId) => { setActiveNote(noteId); setShowGraph(false); setIsMobileSidebarOpen(false); },
@@ -493,7 +497,7 @@ export default function KbView() {
     drop: (e, folderId) => latest.current.handleDrop(e, folderId),
   }), []);
   const onEditorChange = useCallback(
-    (content: string, yjs: Uint8Array, mentions: string[]) => latest.current.updateActiveNote({ content, yjs, mentions }),
+    (noteId: string, content: string, yjs: Uint8Array, mentions: string[]) => latest.current.updateNote(noteId, { content, yjs, mentions }),
     []
   );
   const onEditorNoteClick = useCallback((noteId: string) => {
