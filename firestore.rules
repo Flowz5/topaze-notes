@@ -7,56 +7,99 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function myEmail() {
+      return request.auth.token.email;
+    }
+
     function isOwner(kbData) {
       return isAuthenticated() && kbData.ownerId == request.auth.uid;
     }
 
     function isMember(kbData) {
-      return isAuthenticated() && (request.auth.token.email in kbData.members);
+      return isAuthenticated() && (myEmail() in kbData.members);
     }
 
     function hasAccess(kbData) {
       return isOwner(kbData) || isMember(kbData);
     }
-    
+
     function isReasonableString(text, maxLength) {
       return text is string && text.size() <= maxLength;
     }
-    
-    // parentId peut être null (dossier racine) ou une string valide
+
+    // parentId / folderId peut être null (racine) ou une string valide
     function isValidParentId(parentId) {
       return parentId == null || isReasonableString(parentId, 100);
     }
 
+    // authorEmail est optionnel (anciennes notes générées) mais borné s'il existe
+    function hasValidAuthor(data) {
+      return !('authorEmail' in data) || isReasonableString(data.authorEmail, 150);
+    }
+
+    // À la création, on ne peut signer qu'en son propre nom
+    function isSignedByMe(data) {
+      return data.authorEmail == myEmail();
+    }
+
+    // En modification, l'auteur d'origine ne change pas
+    function authorUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorEmail']);
+    }
+
+    // Un membre (non propriétaire) peut uniquement se retirer lui-même de la base
+    function isLeavingBase() {
+      return isMember(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+        && !(myEmail() in request.resource.data.members)
+        && request.resource.data.members.size() == resource.data.members.size() - 1;
+    }
+
     match /knowledgeBases/{kbId} {
+      function kb() {
+        return get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data;
+      }
+
       allow read: if hasAccess(resource.data);
-      
-      allow create: if isAuthenticated() 
+
+      allow create: if isAuthenticated()
                     && request.resource.data.ownerId == request.auth.uid
                     && isReasonableString(request.resource.data.name, 100)
                     && request.resource.data.members is list;
-                    
-      allow update: if isOwner(resource.data)
-                    && isReasonableString(request.resource.data.name, 100)
-                    && request.resource.data.members is list;
-                    
+
+      allow update: if (isOwner(resource.data)
+                        && request.resource.data.ownerId == resource.data.ownerId
+                        && isReasonableString(request.resource.data.name, 100)
+                        && request.resource.data.members is list)
+                    || isLeavingBase();
+
       allow delete: if isOwner(resource.data);
-      
+
       match /folders/{folderId} {
-        allow read: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data);
-        allow write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data)
-                     && isReasonableString(request.resource.data.name, 100)
-                     && isValidParentId(request.resource.data.parentId)
-                     && isReasonableString(request.resource.data.authorEmail, 150);
+        function isValidFolder(data) {
+          return isReasonableString(data.name, 100)
+            && isValidParentId(data.get('parentId', null))
+            && hasValidAuthor(data);
+        }
+
+        allow read: if hasAccess(kb());
+        allow create: if hasAccess(kb()) && isValidFolder(request.resource.data) && isSignedByMe(request.resource.data);
+        allow update: if hasAccess(kb()) && isValidFolder(request.resource.data) && authorUnchanged();
+        allow delete: if hasAccess(kb());
       }
-      
+
       match /notes/{noteId} {
-        allow read: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data);
-        allow write: if hasAccess(get(/databases/$(database)/documents/knowledgeBases/$(kbId)).data)
-                     && isReasonableString(request.resource.data.title, 200)
-                     && isReasonableString(request.resource.data.content, 1048576)
-                     && isValidParentId(request.resource.data.folderId)
-                     && isReasonableString(request.resource.data.authorEmail, 150);
+        function isValidNote(data) {
+          return isReasonableString(data.title, 200)
+            && isReasonableString(data.content, 1048576)
+            && isValidParentId(data.get('folderId', null))
+            && hasValidAuthor(data);
+        }
+
+        allow read: if hasAccess(kb());
+        allow create: if hasAccess(kb()) && isValidNote(request.resource.data) && isSignedByMe(request.resource.data);
+        allow update: if hasAccess(kb()) && isValidNote(request.resource.data) && authorUnchanged();
+        allow delete: if hasAccess(kb());
       }
     }
   }
