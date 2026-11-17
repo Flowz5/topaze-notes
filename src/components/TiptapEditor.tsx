@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
+import { memo, useEffect, useMemo, useState, useRef } from 'react';
+import type { EditorProps } from '@tiptap/pm/view';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import { Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, ListTodo } from 'lucide-react';
@@ -48,7 +49,7 @@ function extractMentions(node: any): string[] {
   return mentions;
 }
 
-export default function TiptapEditor({ kbId, noteId, initialContent, legacyYjsState, onChange, currentUser, allNotes, onNoteClick }: TiptapEditorProps) {
+function TiptapEditor({ kbId, noteId, initialContent, legacyYjsState, onChange, currentUser, allNotes, onNoteClick }: TiptapEditorProps) {
   const [setup, setSetup] = useState<{ ydoc: Y.Doc; provider: WebrtcProvider; hasState: boolean } | null>(null);
   // L'ancien état n'est lu qu'au montage : ensuite la sous-collection fait foi
   const legacyRef = useRef(legacyYjsState);
@@ -119,14 +120,18 @@ export default function TiptapEditor({ kbId, noteId, initialContent, legacyYjsSt
 
 function EditorInner({ ydoc, hasState, initialContent, onChange, allNotes, onNoteClick, }: any) {
   const notesRef = useRef(allNotes);
+  const onChangeRef = useRef(onChange);
+  const onNoteClickRef = useRef(onNoteClick);
   useEffect(() => {
     notesRef.current = allNotes;
-  }, [allNotes]);
+    onChangeRef.current = onChange;
+    onNoteClickRef.current = onNoteClick;
+  }, [allNotes, onChange, onNoteClick]);
 
-  // Je configure l'éditeur riche avec mes extensions (Markdown, Collab, etc.)
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ codeBlock: false }),
+  // Extensions et props créées UNE fois par document : si elles changent à chaque rendu,
+  // Tiptap reconfigure ProseMirror (view.setProps) à chaque rendu, donc à chaque frappe.
+  const extensions = useMemo(() => [
+    StarterKit.configure({ codeBlock: false }),
       TaskList,
       TaskItem.configure({
         nested: true,
@@ -145,30 +150,36 @@ function EditorInner({ ydoc, hasState, initialContent, onChange, allNotes, onNot
         },
         suggestion: getSuggestionConfig(notesRef),
       }),
-    ],
+  ], [ydoc]);
+
+  const editorProps = useMemo<EditorProps>(() => ({
+    attributes: {
+      class: 'prose prose-invert focus:outline-none tiptap-editor',
+    },
+    handleClick(_view, _pos, event) {
+      const target = event.target as HTMLElement;
+      if (target && target.classList.contains('mention')) {
+        const noteId = target.getAttribute('data-id');
+        if (noteId) {
+          onNoteClickRef.current(noteId);
+          return true;
+        }
+      }
+      return false;
+    },
+  }), []);
+
+  // Je configure l'éditeur riche avec mes extensions (Markdown, Collab, etc.)
+  const editor = useEditor({
+    extensions,
+    editorProps,
     onUpdate: ({ editor }) => {
       // @ts-ignore
       const markdown = editor.storage.markdown.getMarkdown();
       
       const state = Y.encodeStateAsUpdate(ydoc);
       const mentions = Array.from(new Set(extractMentions(editor.getJSON())));
-      onChange(markdown, state, mentions);
-    },
-    editorProps: {
-      attributes: {
-        class: 'prose prose-invert focus:outline-none tiptap-editor',
-      },
-      handleClick(_view, _pos, event) {
-        const target = event.target as HTMLElement;
-        if (target && target.classList.contains('mention')) {
-          const noteId = target.getAttribute('data-id');
-          if (noteId) {
-            onNoteClick(noteId);
-            return true;
-          }
-        }
-        return false;
-      },
+      onChangeRef.current(markdown, state, mentions);
     },
   });
 
@@ -244,3 +255,12 @@ function EditorInner({ ydoc, hasState, initialContent, onChange, allNotes, onNot
     </div>
   );
 }
+
+// Mémoïsé : ne se re-rend pas quand la page parente se re-rend (ex. à chaque frappe).
+// initialContent et legacyYjsState ne servent qu'au montage : leurs changements sont ignorés.
+const INITIAL_ONLY_PROPS = new Set(['initialContent', 'legacyYjsState']);
+export default memo(TiptapEditor, (prev, next) =>
+  (Object.keys(next) as (keyof TiptapEditorProps)[]).every(
+    (key) => INITIAL_ONLY_PROPS.has(key) || prev[key] === next[key]
+  )
+);

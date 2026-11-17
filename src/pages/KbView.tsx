@@ -8,10 +8,11 @@ import {
 import { addYjsStateToBatch, deleteYjsState, YJS_MAX_CHUNKS } from '../lib/yjsStorage';
 import { 
   ArrowLeft, Plus, Share2, Network, 
-  Folder, FileText, ChevronDown, ChevronRight, Settings, UserMinus, Trash2, Edit2, Download, FolderPlus, Info, Search,
+  FileText, ChevronDown, ChevronRight, Settings, UserMinus, Download, FolderPlus, Info, Search,
   Menu, X
 } from 'lucide-react';
 import TiptapEditor from '../components/TiptapEditor';
+import NoteTree, { type TreeActions, type TreeNote } from '../components/NoteTree';
 import ForceGraph2D from 'react-force-graph-2d';
 import ThemeToggle from '../components/ThemeToggle';
 import { usePendingEdits } from '../hooks/usePendingEdits';
@@ -102,25 +103,29 @@ export default function KbView() {
 
 
 
-  const mockGraphData = {
-    nodes: [
-      ...folders.map(f => ({ id: f.id, name: f.name, group: 'folder', val: 5 })),
-      ...notes.map(n => ({ id: n.id, name: n.title, group: 'note', val: 3 })),
-      ...Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean)))).map(tag => ({ id: `tag-${tag}`, name: `#${tag}`, group: 'tag', val: 4 }))
-    ],
-    links: [
-      ...folders.filter(f => f.parentId).map(f => ({ source: f.parentId, target: f.id })),
-      ...notes.filter(n => n.folderId).map(n => ({ source: n.folderId, target: n.id })),
-      ...notes.flatMap(n => 
-        n.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => ({ source: `tag-${tag}`, target: n.id }))
-      ),
-      // Backlinks graph links (with exact match to avoid substring issues like Note 1 vs Note 11)
-      ...notes.flatMap(n => {
-        const mentions = notes.filter(other => n.mentions?.includes(other.id));
-        return mentions.map(m => ({ source: n.id, target: m.id }));
-      })
-    ]
-  };
+  // Données du graphe : calculées seulement quand la vue Graphe est ouverte
+  const graphData = useMemo(() => {
+    if (!showGraph) return { nodes: [], links: [] };
+    return {
+      nodes: [
+        ...folders.map(f => ({ id: f.id, name: f.name, group: 'folder', val: 5 })),
+        ...notes.map(n => ({ id: n.id, name: n.title, group: 'note', val: 3 })),
+        ...Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean)))).map(tag => ({ id: `tag-${tag}`, name: `#${tag}`, group: 'tag', val: 4 }))
+      ],
+      links: [
+        ...folders.filter(f => f.parentId).map(f => ({ source: f.parentId, target: f.id })),
+        ...notes.filter(n => n.folderId).map(n => ({ source: n.folderId, target: n.id })),
+        ...notes.flatMap(n => 
+          n.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => ({ source: `tag-${tag}`, target: n.id }))
+        ),
+        // Backlinks graph links (with exact match to avoid substring issues like Note 1 vs Note 11)
+        ...notes.flatMap(n => {
+          const mentions = notes.filter(other => n.mentions?.includes(other.id));
+          return mentions.map(m => ({ source: n.id, target: m.id }));
+        })
+      ]
+    };
+  }, [showGraph, folders, notes]);
 
   // Modals
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -451,6 +456,55 @@ export default function KbView() {
 
   const baseName = baseData ? baseData.name : 'Chargement...';
 
+  // --- Mémoïsation : une frappe dans l'éditeur ne doit pas re-rendre toute la page ---
+  // Signature de la structure (sans le contenu) : change seulement si titre, dossier ou tags changent
+  const structureKey = notes.map(n => `${n.id}\u0000${n.title}\u0000${n.folderId}\u0000${n.tags}\u0000${n.authorEmail ?? ''}`).join('\u0001');
+  const treeNotes = useMemo<TreeNote[]>(
+    () => notes.map(({ id, title, folderId, tags, authorEmail }) => ({ id, title, folderId, tags, authorEmail })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recalcul seulement si la structure change
+    [structureKey]
+  );
+  const allTags = useMemo(
+    () => Array.from(new Set(treeNotes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean)))),
+    [treeNotes]
+  );
+  const editorNotes = useMemo(() => treeNotes.map(n => ({ id: n.id, title: n.title })), [treeNotes]);
+
+  // Les handlers changent à chaque rendu : je passe des versions stables qui appellent toujours
+  // la dernière version (sinon le mémo ne servirait à rien, ou on figerait des valeurs périmées).
+  const latest = useRef({
+    handleDragStart, handleDragOver, handleDrop, toggleFolder, handleCreateFolder, handleRenameFolder,
+    handleAddNoteToFolder, handleDeleteFolder, handleDeleteNote, updateActiveNote,
+  });
+  latest.current = {
+    handleDragStart, handleDragOver, handleDrop, toggleFolder, handleCreateFolder, handleRenameFolder,
+    handleAddNoteToFolder, handleDeleteFolder, handleDeleteNote, updateActiveNote,
+  };
+  const treeActions = useMemo<TreeActions>(() => ({
+    openNote: (noteId) => { setActiveNote(noteId); setShowGraph(false); setIsMobileSidebarOpen(false); },
+    toggleFolder: (folderId) => latest.current.toggleFolder(folderId),
+    createFolder: (parentId) => latest.current.handleCreateFolder(parentId),
+    renameFolder: (folderId, oldName) => latest.current.handleRenameFolder(folderId, oldName),
+    addNoteToFolder: (folderId) => latest.current.handleAddNoteToFolder(folderId),
+    deleteFolder: (folderId) => latest.current.handleDeleteFolder(folderId),
+    deleteNote: (noteId) => latest.current.handleDeleteNote(noteId),
+    dragStart: (e, itemId, type) => latest.current.handleDragStart(e, itemId, type),
+    dragOver: (e) => latest.current.handleDragOver(e),
+    drop: (e, folderId) => latest.current.handleDrop(e, folderId),
+  }), []);
+  const onEditorChange = useCallback(
+    (content: string, yjs: Uint8Array, mentions: string[]) => latest.current.updateActiveNote({ content, yjs, mentions }),
+    []
+  );
+  const onEditorNoteClick = useCallback((noteId: string) => {
+    setActiveNote(noteId);
+    setIsMobileSidebarOpen(false);
+  }, []);
+  const editorUser = useMemo(
+    () => ({ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: cursorColor }),
+    [currentUser?.email, cursorColor]
+  );
+
   if (baseData === null) {
     return (
       <div className="kb-layout kb-not-found">
@@ -462,62 +516,7 @@ export default function KbView() {
 
   
 
-  const allTags = Array.from(new Set(notes.flatMap(n => n.tags.split(',').map(t => t.trim()).filter(Boolean))));
 
-
-  const renderTree = (parentId: string | null, depth: number = 0) => {
-    const childFolders = folders.filter(f => (f.parentId || null) === parentId);
-    const childNotes = notes.filter(n => n.folderId === parentId && (!activeTag || n.tags.split(',').map(t=>t.trim()).includes(activeTag)));
-
-    return (
-      <div className={depth > 0 ? 'tree-children' : undefined}>
-        {childFolders.map(folder => (
-          <div key={folder.id}>
-            <div 
-              className="folder-item" title={isOwner ? `Créé par : ${folder.authorEmail || 'Inconnu'}` : undefined}
-              draggable
-              onDragStart={(e) => handleDragStart(e, folder.id, 'folder')}
-              onClick={() => toggleFolder(folder.id)}
-              onDragOver={handleDragOver}
-              onDrop={(e) => {
-                e.stopPropagation();
-                handleDrop(e, folder.id);
-              }}
-            >
-              <div className="tree-item-label">
-                {expandedFolders[folder.id] ? <ChevronDown size={14} className="tree-chevron" /> : <ChevronRight size={14} className="tree-chevron" />}
-                <Folder size={16} className="folder-icon" />
-                <span className="tree-item-name">{folder.name}</span>
-              </div>
-              <div className="tree-item-actions">
-                <button className="add-note-btn" title="Ajouter un sous-dossier" onClick={(e) => { e.stopPropagation(); handleCreateFolder(folder.id); }}><FolderPlus size={14} /></button>
-                <button className="add-note-btn" title="Renommer le dossier" onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id, folder.name); }}><Edit2 size={14} /></button>
-                <button className="add-note-btn" title="Ajouter une note" onClick={(e) => { e.stopPropagation(); handleAddNoteToFolder(folder.id); }}><Plus size={14} /></button>
-                <button className="delete-note-btn" title="Supprimer le dossier" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}><Trash2 size={14} /></button>
-              </div>
-            </div>
-            {expandedFolders[folder.id] && renderTree(folder.id, depth + 1)}
-          </div>
-        ))}
-        
-        {childNotes.map(note => (
-          <div 
-            key={note.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, note.id, 'note')}
-            className={`note-item ${activeNote === note.id && !showGraph ? 'active' : ''}`} title={isOwner ? `Créé par : ${note.authorEmail || 'Inconnu'}` : undefined}
-            onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); setIsMobileSidebarOpen(false); }}
-          >
-            <div className="tree-item-label">
-              <FileText size={15} className="note-icon" />
-              <span className="tree-item-name">{note.title}</span>
-            </div>
-            <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}><Trash2 size={14} /></button>
-          </div>
-        ))}
-      </div>
-    );
-  };
 
   return (
     <div className="kb-layout">
@@ -610,7 +609,15 @@ export default function KbView() {
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, null)} // Drop to root
         >
-          {renderTree(null, 0)}
+          <NoteTree
+            notes={treeNotes}
+            folders={folders}
+            expandedFolders={expandedFolders}
+            activeNoteId={showGraph ? null : activeNote}
+            activeTag={activeTag}
+            isOwner={isOwner}
+            actions={treeActions}
+          />
         </div>
       </aside>
 
@@ -700,7 +707,7 @@ export default function KbView() {
               <ForceGraph2D
                 width={graphDimensions.width}
                 height={graphDimensions.height}
-                graphData={mockGraphData}
+                graphData={graphData}
                 nodeLabel="name"
                 nodeColor={(node: any) => {
                   if (node.group === 'folder') return graphColors.folder;
@@ -747,13 +754,10 @@ export default function KbView() {
                 noteId={activeNoteData.id}
                 initialContent={activeNoteData.content}
                 legacyYjsState={activeNoteData.yjsState}
-                currentUser={{ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: cursorColor }}
-                onChange={(val, yjs, mentions) => updateActiveNote({ content: val, yjs, mentions })}
-                allNotes={notes.map(n => ({ id: n.id, title: n.title }))}
-                onNoteClick={(noteId) => {
-                  setActiveNote(noteId);
-                  setIsMobileSidebarOpen(false);
-                }}
+                currentUser={editorUser}
+                onChange={onEditorChange}
+                allNotes={editorNotes}
+                onNoteClick={onEditorNoteClick}
               />
               
               {/* BACKLINKS SECTION */}
