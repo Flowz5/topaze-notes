@@ -1,13 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <script>
       window.global = window;
       var process = { env: { DEBUG: undefined }, version: "" };
+      // Applique le thème avant le premier rendu pour éviter le flash.
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem("topaze-theme"); } catch (e) {}
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = t;
+      })();
     </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/src/assets/gem.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#faf7f3" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <title>Topaze Notes</title>
     <meta name="description" content="Topaze Notes, votre base de connaissances connectée et collaborative. Prenez des notes, liez-les entre elles et visualisez vos idées sous forme de graphe interactif." />
     <meta name="keywords" content="notes, base de connaissances, collaboratif, graphe, pkm, topaze" />

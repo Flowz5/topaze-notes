@@ -16,7 +16,7 @@ export default defineConfig({
         name: 'Topaze Notes',
         short_name: 'Topaze',
         description: 'Base de connaissances connectée',
-        theme_color: '#0b2d30',
+        theme_color: '#f27f22',
         icons: [
           {
             src: 'https://vitejs.dev/logo.svg',

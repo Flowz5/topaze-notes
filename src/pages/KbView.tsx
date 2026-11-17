@@ -13,6 +13,8 @@ import {
 import TiptapEditor from '../components/TiptapEditor';
 import ForceGraph2D from 'react-force-graph-2d';
 import debounce from 'lodash/debounce';
+import ThemeToggle from '../components/ThemeToggle';
+import { useTheme } from '../theme/useTheme';
 import './KbView.css';
 
 interface Note {
@@ -121,6 +123,21 @@ export default function KbView() {
   const [tagSearch, setTagSearch] = useState('');
 
   const currentUser = auth.currentUser;
+  const { theme } = useTheme();
+
+  // Le graphe est dessiné dans un canvas : je lis les couleurs du thème courant
+  // directement depuis les variables CSS pour qu'il suive le mode clair/sombre.
+  const graphColors = useMemo(() => {
+    const css = getComputedStyle(document.documentElement);
+    const v = (name: string) => css.getPropertyValue(name).trim();
+    return {
+      note: v('--graph-note'),
+      folder: v('--graph-folder'),
+      tag: v('--graph-tag'),
+      link: v('--graph-link'),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recalcul voulu à chaque changement de thème
+  }, [theme]);
   const cursorColor = useMemo(() => '#' + Math.floor(Math.random()*16777215).toString(16), []);
   const isOwner = baseData?.ownerId === currentUser?.uid;
 
@@ -375,6 +392,9 @@ export default function KbView() {
         e.preventDefault();
         setIsSearchModalOpen(true);
       }
+      if (e.key === 'Escape') {
+        setIsSearchModalOpen(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -419,7 +439,7 @@ export default function KbView() {
 
   if (baseData === null) {
     return (
-      <div className="kb-layout" style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '1rem' }}>
+      <div className="kb-layout kb-not-found">
         <h2>Base introuvable ou accès refusé</h2>
         <button className="btn-cancel" onClick={() => navigate('/')}>Retour à l'accueil</button>
       </div>
@@ -436,7 +456,7 @@ export default function KbView() {
     const childNotes = notes.filter(n => n.folderId === parentId && (!activeTag || n.tags.split(',').map(t=>t.trim()).includes(activeTag)));
 
     return (
-      <div style={{ marginLeft: depth > 0 ? '1rem' : '0' }}>
+      <div className={depth > 0 ? 'tree-children' : undefined}>
         {childFolders.map(folder => (
           <div key={folder.id}>
             <div 
@@ -450,12 +470,12 @@ export default function KbView() {
                 handleDrop(e, folder.id);
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {expandedFolders[folder.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                <Folder size={16} fill="rgba(255,255,255,0.2)" />
-                <span>{folder.name}</span>
+              <div className="tree-item-label">
+                {expandedFolders[folder.id] ? <ChevronDown size={14} className="tree-chevron" /> : <ChevronRight size={14} className="tree-chevron" />}
+                <Folder size={16} className="folder-icon" />
+                <span className="tree-item-name">{folder.name}</span>
               </div>
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
+              <div className="tree-item-actions">
                 <button className="add-note-btn" title="Ajouter un sous-dossier" onClick={(e) => { e.stopPropagation(); handleCreateFolder(folder.id); }}><FolderPlus size={14} /></button>
                 <button className="add-note-btn" title="Renommer le dossier" onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id, folder.name); }}><Edit2 size={14} /></button>
                 <button className="add-note-btn" title="Ajouter une note" onClick={(e) => { e.stopPropagation(); handleAddNoteToFolder(folder.id); }}><Plus size={14} /></button>
@@ -474,9 +494,9 @@ export default function KbView() {
             className={`note-item ${activeNote === note.id && !showGraph ? 'active' : ''}`} title={isOwner ? `Créé par : ${note.authorEmail || 'Inconnu'}` : undefined}
             onClick={(e) => { e.stopPropagation(); setActiveNote(note.id); setShowGraph(false); setIsMobileSidebarOpen(false); }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={16} />
-              <span>{note.title}</span>
+            <div className="tree-item-label">
+              <FileText size={15} className="note-icon" />
+              <span className="tree-item-name">{note.title}</span>
             </div>
             <button className="delete-note-btn" onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}><Trash2 size={14} /></button>
           </div>
@@ -516,32 +536,33 @@ export default function KbView() {
           <div className="kb-actions">
             <button className="kb-action-btn" onClick={() => createNoteInFirestore()} title="Nouvelle note">
               <Plus size={16} />
+              <span>Note</span>
             </button>
             <button className="kb-action-btn" onClick={() => handleCreateFolder(null)} title="Nouveau dossier">
               <FolderPlus size={16} />
+              <span>Dossier</span>
             </button>
             <button 
-              className="kb-action-btn" 
+              className={`kb-action-btn ${showGraph ? 'is-active' : ''}`}
               title="Vue Graphe"
               onClick={() => setShowGraph(!showGraph)}
-              style={{ backgroundColor: showGraph ? 'rgba(255,255,255,0.3)' : '' }}
             >
               <Network size={16} />
+              <span>Graphe</span>
             </button>
           </div>
         </div>
 
         {allTags.length > 0 && (
-          <div className="kb-tags-filter" style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <div 
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: isTagsOpen ? '0.75rem' : '0' }}
+          <div className="kb-tags-filter">
+            <button
+              type="button"
+              className={`kb-tags-toggle ${isTagsOpen ? 'is-open' : ''}`}
               onClick={() => setIsTagsOpen(!isTagsOpen)}
             >
-              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Filtres par Tag ({allTags.length})
-              </span>
-              {isTagsOpen ? <ChevronDown size={14} color="rgba(255,255,255,0.3)" /> : <ChevronRight size={14} color="rgba(255,255,255,0.3)" />}
-            </div>
+              <span>Tags <span className="kb-tags-count">{allTags.length}</span></span>
+              {isTagsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
             
             {isTagsOpen && (
               <>
@@ -550,41 +571,20 @@ export default function KbView() {
                   placeholder="Rechercher un tag..." 
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.4rem 0.75rem',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    backgroundColor: 'rgba(0,0,0,0.2)',
-                    color: 'white',
-                    fontSize: '0.85rem',
-                    marginBottom: '0.75rem',
-                    outline: 'none'
-                  }}
+                  className="input input-sm kb-tags-search"
                 />
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', maxHeight: '150px', overflowY: 'auto' }}>
+                <div className="kb-tags-list">
                   {allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase())).map(tag => (
                     <span 
                       key={tag}
                       onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                      style={{
-                        fontSize: '0.85rem',
-                        padding: '0.25rem 0.6rem',
-                        borderRadius: '6px',
-                        backgroundColor: activeTag === tag ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
-                        color: activeTag === tag ? 'var(--surface)' : 'rgba(255,255,255,0.7)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        fontWeight: activeTag === tag ? '600' : '400',
-                        border: '1px solid',
-                        borderColor: activeTag === tag ? 'var(--primary)' : 'rgba(255,255,255,0.1)'
-                      }}
+                      className={`tag-chip ${activeTag === tag ? 'is-active' : ''}`}
                     >
                       #{tag}
                     </span>
                   ))}
                   {allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (
-                    <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Aucun tag trouvé</span>
+                    <span className="muted-hint">Aucun tag trouvé</span>
                   )}
                 </div>
               </>
@@ -655,22 +655,23 @@ export default function KbView() {
               <Share2 size={16} />
               <span className="btn-text">Partager</span>
             </button>
+            <ThemeToggle className="kb-header-icon-btn" />
             <button 
-              className="logout-btn kb-header-icon-btn" 
+              className="icon-btn kb-header-icon-btn" 
               onClick={() => setIsSearchModalOpen(true)}
               title="Rechercher (Cmd+K)"
             >
               <Search size={18} />
             </button>
             <button 
-              className="logout-btn kb-header-icon-btn" 
+              className="icon-btn kb-header-icon-btn" 
               onClick={() => setIsHelpModalOpen(true)}
               title="Aide & Raccourcis"
             >
               <Info size={18} />
             </button>
             <button 
-              className="logout-btn kb-header-icon-btn" 
+              className="icon-btn kb-header-icon-btn" 
               onClick={openSettings}
               title="Paramètres"
             >
@@ -681,18 +682,18 @@ export default function KbView() {
         
         <div className="kb-main-content">
           {showGraph ? (
-            <div ref={graphContainerRef} style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.15)', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div ref={graphContainerRef} className="kb-graph">
               <ForceGraph2D
                 width={graphDimensions.width}
                 height={graphDimensions.height}
                 graphData={mockGraphData}
                 nodeLabel="name"
                 nodeColor={(node: any) => {
-                  if (node.group === 'folder') return '#ffffff';
-                  if (node.group === 'tag') return 'rgba(255, 255, 255, 0.3)';
-                  return '#5eead4';
+                  if (node.group === 'folder') return graphColors.folder;
+                  if (node.group === 'tag') return graphColors.tag;
+                  return graphColors.note;
                 }}
-                linkColor={() => 'rgba(255, 255, 255, 0.15)'}
+                linkColor={() => graphColors.link}
                 backgroundColor="transparent"
                 onNodeClick={(node: any) => {
                   if (node.group === 'note') {
@@ -704,7 +705,7 @@ export default function KbView() {
               />
             </div>
           ) : activeNoteData ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div className="kb-note">
               <div className="kb-note-properties">
                 <div className="prop-row">
                   <span className="prop-key">date:</span>
@@ -741,9 +742,9 @@ export default function KbView() {
               />
               
               {/* BACKLINKS SECTION */}
-              <div className="backlinks-section" style={{ marginTop: '3rem', padding: '1rem', borderTop: '1px solid var(--border)' }}>
-                <h3 style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Cité dans...</h3>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="backlinks-section">
+                <h3 className="backlinks-title">Cité dans</h3>
+                <div className="backlinks-list">
                   {notes
                     .filter(n => n.id !== activeNoteData.id && n.mentions?.includes(activeNoteData.id))
                     .map(backlink => (
@@ -754,30 +755,33 @@ export default function KbView() {
                           setActiveNote(backlink.id);
                           setIsMobileSidebarOpen(false);
                         }}
-                        style={{
-                          background: 'var(--surface-hover)',
-                          border: '1px solid var(--border)',
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '12px',
-                          color: 'var(--primary)',
-                          cursor: 'pointer',
-                          fontSize: '0.9rem'
-                        }}
                       >
+                        <FileText size={13} />
                         {backlink.title}
                       </button>
                     ))
                   }
                   {notes.filter(n => n.id !== activeNoteData.id && n.mentions?.includes(activeNoteData.id)).length === 0 && (
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Aucune mention.</span>
+                    <span className="muted-hint">Aucune mention.</span>
                   )}
                 </div>
               </div>
             </div>
           ) : (
             <div className="kb-empty-state">
-              <Network size={64} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-              <p style={{ fontSize: '1.25rem' }}>Sélectionne une note ou ouvre la vue Graphe</p>
+              <div className="kb-empty-icon">
+                <Network size={32} />
+              </div>
+              <p className="kb-empty-title">Aucune note ouverte</p>
+              <p className="kb-empty-text">Sélectionne une note dans la barre latérale, crée-en une nouvelle ou explore la vue Graphe.</p>
+              <div className="kb-empty-actions">
+                <button className="btn btn-primary" onClick={() => createNoteInFirestore()}>
+                  <Plus size={16} /> Nouvelle note
+                </button>
+                <button className="btn btn-secondary" onClick={() => setShowGraph(true)}>
+                  <Network size={16} /> Vue Graphe
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -790,42 +794,43 @@ export default function KbView() {
             <h3 className="modal-title">Gérer les accès</h3>
             
             {isOwner ? (
-              <form onSubmit={handleInvite} style={{ marginBottom: '2rem' }}>
-                <div className="input-group" style={{ marginBottom: '1rem' }}>
+              <form onSubmit={handleInvite} className="share-form">
+                <div className="field">
+                  <span className="field-icon"><Share2 size={16} /></span>
                   <input
                     type="email"
                     required
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="Adresse email de l'invité..."
-                    className="home-input"
-                    style={{ paddingLeft: '1.5rem' }}
+                    className="input"
                   />
                 </div>
-                <button type="submit" className="btn-confirm" style={{ width: '100%' }}>
+                <button type="submit" className="btn-confirm">
                   Inviter
                 </button>
               </form>
             ) : (
-              <p style={{ textAlign: 'center', marginBottom: '2rem', color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem' }}>
+              <p className="modal-text" style={{ marginBottom: '1.5rem' }}>
                 Seul le propriétaire peut inviter de nouveaux membres.
               </p>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <h4 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
-                Membres ({baseData.members.length})
+            <div>
+              <h4 className="modal-section-title">
+                Membres · {baseData.members.length}
               </h4>
-              <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div className="member-list">
                 {baseData.members.map((email) => (
-                  <div key={email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem 1rem', borderRadius: '0.5rem' }}>
-                    <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)' }}>
-                      {email} {email === currentUser?.email && <span style={{ opacity: 0.5 }}>(Toi)</span>}
+                  <div key={email} className="member-row">
+                    <span className="member-avatar">{email.charAt(0).toUpperCase()}</span>
+                    <span className="member-email">
+                      {email} {email === currentUser?.email && <span className="member-you">(Toi)</span>}
                     </span>
                     {isOwner && email !== currentUser?.email && (
                       <button 
                         onClick={() => handleRemoveMember(email)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.25rem', display: 'flex', alignItems: 'center' }}
+                        className="member-remove"
                         title="Retirer l'accès"
                       >
                         <UserMinus size={18} />
@@ -836,7 +841,7 @@ export default function KbView() {
               </div>
             </div>
 
-            <div className="modal-actions" style={{ marginTop: '2rem' }}>
+            <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setIsShareModalOpen(false)}>
                 Fermer
               </button>
@@ -850,27 +855,21 @@ export default function KbView() {
       {/* MODAL RECHERCHE GLOBALE */}
       {isSearchModalOpen && (
         <div className="modal-overlay" onClick={() => setIsSearchModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', marginTop: '10vh', position: 'absolute', top: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-hover)', borderRadius: '99px', padding: '0.5rem 1rem', marginBottom: '1rem' }}>
-              <Search size={20} color="var(--primary)" style={{ marginRight: '0.5rem' }} />
+          <div className="modal-content modal-wide search-modal" onClick={e => e.stopPropagation()}>
+            <div className="search-bar">
+              <Search size={20} className="search-bar-icon" />
               <input
                 autoFocus
                 type="text"
                 placeholder="Rechercher une note par titre..."
                 value={globalSearchInput}
                 onChange={e => setGlobalSearchInput(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'white',
-                  width: '100%',
-                  outline: 'none',
-                  fontSize: '1.1rem'
-                }}
+                className="search-bar-input"
               />
+              <kbd>Esc</kbd>
             </div>
             
-            <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="search-results">
               {(() => {
                 const searchLower = globalSearchInput.toLowerCase();
                 const filteredNotes = notes.filter(n => {
@@ -881,7 +880,7 @@ export default function KbView() {
 
                 if (filteredNotes.length === 0) {
                   return (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(255,255,255,0.5)' }}>
+                    <div className="search-empty">
                       Aucune note ne correspond à "{globalSearchInput}"
                     </div>
                   );
@@ -907,30 +906,14 @@ export default function KbView() {
                         setGlobalSearchInput('');
                         setIsMobileSidebarOpen(false);
                       }}
-                      style={{
-                        padding: '1rem',
-                        background: 'var(--surface-hover)',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--primary)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+                      className="search-result"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <FileText size={18} />
-                        <span style={{ fontWeight: '500' }}>{note.title}</span>
+                      <div className="search-result-title">
+                        <FileText size={16} />
+                        <span>{note.title}</span>
                       </div>
                       {snippet && (
-                        <div style={{ 
-                          marginTop: '0.5rem', 
-                          fontSize: '0.85rem', 
-                          color: 'rgba(255,255,255,0.7)',
-                          paddingLeft: '2rem',
-                          fontStyle: 'italic'
-                        }}>
+                        <div className="search-result-snippet">
                           "{snippet}"
                         </div>
                       )}
@@ -946,32 +929,32 @@ export default function KbView() {
       {/* MODAL AIDE / INFO */}
       {isHelpModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '600px' }}>
+          <div className="modal-content modal-wide">
             <h3 className="modal-title">Bienvenue sur Topaze Notes</h3>
-            <div style={{ color: 'rgba(255,255,255,0.8)', lineHeight: '1.6', fontSize: '0.95rem' }}>
+            <div className="modal-text">
               <p style={{ marginBottom: '1rem' }}>Voici quelques astuces pour utiliser l'application comme un pro :</p>
               
-              <ul style={{ listStyleType: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
-                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Liens Bidirectionnels (Backlinks)</strong>
-                  Tape <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>@</kbd> n'importe où dans tes notes pour faire le lien vers une autre note. Le graphe se mettra à jour automatiquement !
+              <ul className="help-list">
+                <li className="help-item">
+                  <strong>Liens Bidirectionnels (Backlinks)</strong>
+                  Tape <kbd>@</kbd> n'importe où dans tes notes pour faire le lien vers une autre note. Le graphe se mettra à jour automatiquement !
                 </li>
-                <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
-                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Recherche Globale</strong>
-                  Appuie sur <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>Cmd + K</kbd> ou <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>Ctrl + K</kbd> depuis n'importe où pour ouvrir la barre de recherche rapide et naviguer entre tes notes.
+                <li className="help-item">
+                  <strong>Recherche Globale</strong>
+                  Appuie sur <kbd>Cmd + K</kbd> ou <kbd>Ctrl + K</kbd> depuis n'importe où pour ouvrir la barre de recherche rapide et naviguer entre tes notes.
                 </li>
-                <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
-                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Syntaxe Markdown</strong>
-                  L'éditeur supporte la syntaxe Markdown standard : <b>gras</b> avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>**</kbd>, <i>italique</i> avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>*</kbd>, titres avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>#</kbd>, blocs de code avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>```</kbd>, et listes de tâches avec <kbd style={{ background: 'var(--surface)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>[ ]</kbd>.
+                <li className="help-item">
+                  <strong>Syntaxe Markdown</strong>
+                  L'éditeur supporte la syntaxe Markdown standard : <b>gras</b> avec <kbd>**</kbd>, <i>italique</i> avec <kbd>*</kbd>, titres avec <kbd>#</kbd>, blocs de code avec <kbd>```</kbd>, et listes de tâches avec <kbd>[ ]</kbd>.
                 </li>
-                <li style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '12px' }}>
-                  <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>Organisation</strong>
+                <li className="help-item">
+                  <strong>Organisation</strong>
                   Tu peux glisser et déposer (Drag & Drop) tes notes et tes dossiers dans la barre latérale pour tout organiser à l'infini.
                 </li>
               </ul>
             </div>
             
-            <div className="modal-actions" style={{ marginTop: '2rem' }}>
+            <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setIsHelpModalOpen(false)}>
                 J'ai compris !
               </button>
@@ -988,54 +971,50 @@ export default function KbView() {
             
             {isOwner ? (
               <>
-                <form onSubmit={handleRename} style={{ marginBottom: '2rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                <form onSubmit={handleRename} className="share-form">
+                  <label className="field-label" htmlFor="rename-base">
                     Renommer la base
                   </label>
-                  <div className="input-group" style={{ marginBottom: '1rem' }}>
+                  <div className="field">
                     <input
+                      id="rename-base"
                       type="text"
                       required
                       value={renameInput}
                       onChange={(e) => setRenameInput(e.target.value)}
-                      className="home-input"
-                      style={{ paddingLeft: '1.5rem' }}
+                      className="input"
                     />
                   </div>
-                  <button type="submit" className="btn-confirm" style={{ width: '100%' }}>
+                  <button type="submit" className="btn-confirm">
                     Enregistrer le nouveau nom
                   </button>
                 </form>
 
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
-                  <h4 style={{ color: '#ef4444', marginBottom: '1rem', fontWeight: 600 }}>Zone de danger</h4>
+                <div className="modal-section">
+                  <h4 className="modal-section-title is-danger">Zone de danger</h4>
                   <button 
                     onClick={handleDeleteBase}
-                    style={{ width: '100%', padding: '0.75rem', backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '9999px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    className="btn btn-danger"
                   >
                     Supprimer la base
                   </button>
                 </div>
               </>
             ) : (
-              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1.5rem' }}>
+              <div>
+                <p className="modal-text" style={{ marginBottom: '1.25rem' }}>
                   Tu es invité sur cette base. Tu ne peux pas modifier ses paramètres.
                 </p>
                 <button 
                   onClick={handleLeaveBase}
-                  style={{ width: '100%', padding: '0.75rem', backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '9999px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  className="btn btn-danger"
                 >
                   Quitter la base
                 </button>
               </div>
             )}
 
-            <div className="modal-actions" style={{ marginTop: '2rem' }}>
+            <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setIsSettingsModalOpen(false)}>
                 Fermer
               </button>

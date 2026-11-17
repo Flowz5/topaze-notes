@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { collection, addDoc, query, where, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
-import { LogOut, Book, Plus, Users, ChevronRight, Database, Loader2, Trash2 } from 'lucide-react';
+import { LogOut, Book, Plus, Users, ChevronRight, Database, Loader2, Trash2, Share2 } from 'lucide-react';
+import Brand from '../components/Brand';
+import ThemeToggle from '../components/ThemeToggle';
 import './Home.css';
 
 type KnowledgeBase = {
@@ -111,124 +113,151 @@ export default function Home() {
     navigate(`/kb/${id}`);
   };
 
+  const userEmail = auth.currentUser?.email || '';
+  const initial = userEmail.charAt(0).toUpperCase() || '?';
+
   return (
     <div className="home-container">
+      <div className="home-glow" aria-hidden="true" />
+
       {/* HEADER */}
       <header className="home-header">
-        <h1 className="home-title">Mes Espaces</h1>
-        <button onClick={handleLogout} className="logout-btn">
-          <LogOut size={18} />
-          Déconnexion
-        </button>
+        <Brand />
+        <div className="home-header-actions">
+          <div className="home-user" title={userEmail}>
+            <span className="home-avatar">{initial}</span>
+            <span className="home-user-email">{userEmail}</span>
+          </div>
+          <ThemeToggle />
+          <button onClick={handleLogout} className="logout-btn" title="Déconnexion">
+            <LogOut size={16} />
+            <span className="btn-text">Déconnexion</span>
+          </button>
+        </div>
       </header>
 
-      {/* MAIN DASHBOARD */}
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4rem', color: 'rgba(255,255,255,0.5)' }}>
-          <Loader2 className="animate-spin" size={32} />
-        </div>
-      ) : (
-        <div className="dashboard-grid">
-          
-          {/* COLONNE GAUCHE : Mes Bases */}
+      <main className="home-main">
+        <div className="home-hero">
           <div>
-            <h2 className="section-title">Mes Bases de Connaissances</h2>
-            <div className="kb-list">
-              
-              {myBases.map((kb) => (
-                <div key={kb.id} className="kb-card" onClick={() => openBase(kb.id)}>
-                  <div className="kb-info">
-                    <div className="kb-icon-wrapper">
-                      <Database size={20} />
-                    </div>
-                    <div>
-                      <div className="kb-name">{kb.name}</div>
-                      <div className="kb-role">Propriétaire</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <button className="delete-base-btn" onClick={(e) => handleDeleteBase(e, kb.id)} title="Supprimer la base">
-                      <Trash2 size={18} />
-                    </button>
-                    <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
-                  </div>
-                </div>
-              ))}
-
-              {/* Bouton Créer */}
-              <button className="create-card" onClick={() => setIsModalOpen(true)}>
-                <div className="create-icon-wrapper">
-                  <Plus size={24} />
-                </div>
-                <span style={{ fontWeight: 600 }}>Créer une nouvelle base</span>
-              </button>
-              
-
-            </div>
+            <h1 className="home-title">Mes espaces</h1>
+            <p className="home-subtitle">Retrouve tes bases de connaissances et celles partagées avec toi.</p>
           </div>
+          <button className="btn btn-primary home-create-btn" onClick={() => setIsModalOpen(true)}>
+            <Plus size={18} />
+            Nouvelle base
+          </button>
+        </div>
 
-          {/* COLONNE DROITE : Bases partagées avec moi */}
-          <div>
-            <h2 className="section-title">Partagées avec moi</h2>
-            <div className="kb-list">
-              {sharedBases.length > 0 ? (
-                sharedBases.map((kb) => (
+        {/* MAIN DASHBOARD */}
+        {loading ? (
+          <div className="home-loading">
+            <Loader2 className="animate-spin" size={28} />
+          </div>
+        ) : (
+          <div className="dashboard-sections">
+
+            {/* Mes Bases */}
+            <section>
+              <h2 className="section-title">
+                Mes bases <span className="section-count">{myBases.length}</span>
+              </h2>
+              <div className="kb-grid">
+                {myBases.map((kb) => (
                   <div key={kb.id} className="kb-card" onClick={() => openBase(kb.id)}>
-                    <div className="kb-info">
+                    <div className="kb-card-top">
                       <div className="kb-icon-wrapper">
-                        <Users size={20} />
+                        <Database size={20} />
                       </div>
-                      <div>
-                        <div className="kb-name">{kb.name}</div>
-                        <div className="kb-role">Invité</div>
+                      <button className="delete-base-btn" onClick={(e) => handleDeleteBase(e, kb.id)} title="Supprimer la base">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    <div className="kb-name">{kb.name}</div>
+                    <div className="kb-card-footer">
+                      <span className="kb-role">Propriétaire</span>
+                      <span className="kb-members"><Users size={14} /> {kb.members?.length ?? 1}</span>
+                      <ChevronRight size={18} className="kb-chevron" />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Bouton Créer */}
+                <button className="create-card" onClick={() => setIsModalOpen(true)}>
+                  <div className="create-icon-wrapper">
+                    <Plus size={22} />
+                  </div>
+                  <span>Créer une nouvelle base</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Bases partagées avec moi */}
+            <section>
+              <h2 className="section-title">
+                Partagées avec moi <span className="section-count">{sharedBases.length}</span>
+              </h2>
+              {sharedBases.length > 0 ? (
+                <div className="kb-grid">
+                  {sharedBases.map((kb) => (
+                    <div key={kb.id} className="kb-card" onClick={() => openBase(kb.id)}>
+                      <div className="kb-card-top">
+                        <div className="kb-icon-wrapper is-shared">
+                          <Users size={20} />
+                        </div>
+                      </div>
+                      <div className="kb-name">{kb.name}</div>
+                      <div className="kb-card-footer">
+                        <span className="kb-role is-guest">Invité</span>
+                        <span className="kb-members"><Users size={14} /> {kb.members?.length ?? 1}</span>
+                        <ChevronRight size={18} className="kb-chevron" />
                       </div>
                     </div>
-                    <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
-                <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '2rem' }}>
-                  Aucune base partagée pour le moment.
+                <div className="empty-state">
+                  <Share2 size={22} />
+                  <span>Aucune base partagée pour le moment.</span>
                 </div>
               )}
-            </div>
-          </div>
+            </section>
 
-        </div>
-      )}
+          </div>
+        )}
+      </main>
 
       {/* MODAL CRÉATION */}
       {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 className="modal-title">Nouvelle Base</h3>
+        <div className="modal-overlay" onClick={() => !isCreating && setIsModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Nouvelle base</h3>
             <form onSubmit={handleCreateBase}>
-              <div className="input-group">
-                <div className="input-icon-left">
-                  <Book size={20} />
-                </div>
+              <label className="field-label" htmlFor="new-base-name">Nom de la base</label>
+              <div className="field">
+                <span className="field-icon"><Book size={18} /></span>
                 <input
+                  id="new-base-name"
                   type="text"
                   required
                   value={newBaseName}
                   onChange={(e) => setNewBaseName(e.target.value)}
-                  placeholder="Nom de la base..."
-                  className="home-input"
+                  placeholder="Ex : Cours BTS SIO"
+                  className="input"
                   autoFocus
                   disabled={isCreating}
                 />
               </div>
               <div className="modal-actions">
-                <button 
-                  type="button" 
-                  className="btn-cancel" 
+                <button
+                  type="button"
+                  className="btn-cancel"
                   onClick={() => setIsModalOpen(false)}
                   disabled={isCreating}
                 >
                   Annuler
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="btn-confirm"
                   disabled={isCreating}
                 >

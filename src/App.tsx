@@ -5,6 +5,9 @@ import { auth } from './firebase';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import KbView from './pages/KbView';
+import { Loader2 } from 'lucide-react';
+import { ThemeProvider } from './theme/ThemeContext';
+import Brand from './components/Brand';
 import './index.css';
 
 function App() {
@@ -21,13 +24,17 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0b2d30', color: 'white' }}>
-        Chargement...
-      </div>
+      <ThemeProvider>
+        <div className="app-loading">
+          <Brand size="lg" />
+          <Loader2 className="animate-spin" size={22} />
+        </div>
+      </ThemeProvider>
     );
   }
 
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <Routes>
         <Route 
@@ -45,6 +52,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

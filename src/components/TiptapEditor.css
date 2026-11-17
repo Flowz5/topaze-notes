@@ -3,36 +3,60 @@
   display: flex;
   flex-direction: column;
   overflow: visible;
-  padding: 1rem 2rem;
+  padding: 1.5rem 2rem 0;
   background-color: transparent;
-  border-radius: 0.5rem;
+}
+
+.tiptap-loading {
+  padding: 2rem;
+  color: var(--text-subtle);
 }
 
 .tiptap-editor {
   min-height: 100%;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text);
   font-family: inherit;
-  font-size: 1.1rem;
-  line-height: 1.6;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  outline: none;
+}
+
+.tiptap-editor:focus,
+.tiptap:focus {
+  outline: none;
 }
 
 /* Base elements styling */
 .tiptap-editor p {
-  margin-bottom: 1rem;
+  margin-bottom: 0.9rem;
 }
 
 .tiptap-editor h1,
 .tiptap-editor h2,
 .tiptap-editor h3 {
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-  font-weight: bold;
-  color: white;
+  font-family: var(--font-display);
+  margin-top: 1.75rem;
+  margin-bottom: 0.6rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  color: var(--text);
 }
 
 .tiptap-editor h1 { font-size: 2rem; }
-.tiptap-editor h2 { font-size: 1.75rem; }
-.tiptap-editor h3 { font-size: 1.5rem; }
+.tiptap-editor h2 { font-size: 1.6rem; }
+.tiptap-editor h3 { font-size: 1.3rem; }
+
+.tiptap-editor a {
+  color: var(--primary);
+  text-underline-offset: 3px;
+}
+
+.tiptap-editor hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
 
 .tiptap-editor ul {
   list-style-type: disc;
@@ -51,26 +75,40 @@
 }
 
 .tiptap-editor blockquote {
-  border-left: 3px solid rgba(255, 255, 255, 0.2);
-  padding-left: 1rem;
-  margin-left: 0;
-  color: rgba(255, 255, 255, 0.7);
-  font-style: italic;
+  border-left: 3px solid var(--primary);
+  background: var(--primary-soft);
+  padding: 0.6rem 1rem;
+  margin: 0 0 1rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--text-muted);
 }
 
+.tiptap-editor blockquote p:last-child { margin-bottom: 0; }
+
 .tiptap-editor code {
-  background-color: rgba(0, 0, 0, 0.3);
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.25rem;
-  font-family: monospace;
-  font-size: 0.9em;
+  background-color: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--primary);
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
 }
 
 .tiptap-editor pre {
-  background-color: rgba(0, 0, 0, 0.3);
-  padding: 1rem;
-  border-radius: 0.5rem;
+  background-color: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 1rem 1.15rem;
+  border-radius: var(--radius);
   overflow-x: auto;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.tiptap-editor pre code {
+  color: var(--text);
+  border: none;
 }
 
 .tiptap-editor pre code {
@@ -80,7 +118,7 @@
 
 /* Placeholder extension */
 .tiptap p.is-editor-empty:first-child::before {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-subtle);
   content: attr(data-placeholder);
   float: left;
   height: 0;
@@ -89,17 +127,60 @@
 
 .mention {
   color: var(--primary);
-  background: var(--surface-hover);
-  border-radius: 4px;
-  padding: 0.1rem 0.3rem;
-  font-weight: 500;
+  background: var(--primary-soft);
+  border-radius: 6px;
+  padding: 0.05rem 0.35rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .mention:hover {
   background: var(--primary);
-  color: var(--surface);
+  color: var(--on-primary);
+}
+
+/* Menu contextuel de mise en forme */
+.bubble-menu {
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.3rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.bubble-btn {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.bubble-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.bubble-btn.is-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.bubble-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.25rem 0.15rem;
+  background: var(--border);
 }
 
 ul[data-type="taskList"] {

@@ -81,7 +81,7 @@ export default function TiptapEditor({ noteId, initialContent, initialYjsState, 
     };
   }, [noteId]); // Le hook se relance automatiquement si l'ID de la note change
 
-  if (!setup) return <div style={{ padding: '2rem', color: 'rgba(255,255,255,0.5)' }}>Connexion au document...</div>;
+  if (!setup) return <div className="tiptap-loading">Connexion au document...</div>;
 
   return (
     <EditorInner 
@@ -190,75 +190,56 @@ function EditorInner({ ydoc, initialContent, initialYjsState, onChange, allNotes
 
       {editor && (
         <BubbleMenu 
-          editor={editor} 
-          
-          style={{
-            zIndex: 9999,
-            display: 'flex',
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            padding: '0.25rem',
-            borderRadius: '99px',
-            gap: '0.25rem',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-            overflow: 'hidden'
-          }}
+          editor={editor}
+          className="bubble-menu"
         >
           <button
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={editor.isActive('bold') ? 'is-active' : ''}
-            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('bold') ? 'var(--primary)' : 'white', background: editor.isActive('bold') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            className={`bubble-btn ${editor.isActive('bold') ? 'is-active' : ''}`}
           >
             <Bold size={16} />
           </button>
           <button
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={editor.isActive('italic') ? 'is-active' : ''}
-            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('italic') ? 'var(--primary)' : 'white', background: editor.isActive('italic') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            className={`bubble-btn ${editor.isActive('italic') ? 'is-active' : ''}`}
           >
             <Italic size={16} />
           </button>
           <button
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={editor.isActive('strike') ? 'is-active' : ''}
-            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('strike') ? 'var(--primary)' : 'white', background: editor.isActive('strike') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            className={`bubble-btn ${editor.isActive('strike') ? 'is-active' : ''}`}
           >
             <Strikethrough size={16} />
           </button>
           <button
             onClick={() => editor.chain().focus().toggleCode().run()}
-            className={editor.isActive('code') ? 'is-active' : ''}
-            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('code') ? 'var(--primary)' : 'white', background: editor.isActive('code') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            className={`bubble-btn ${editor.isActive('code') ? 'is-active' : ''}`}
           >
             <Code size={16} />
           </button>
-          <div style={{ width: '1px', background: 'var(--border)', margin: '0.25rem' }}></div>
+          <div className="bubble-sep" />
           <button
             onClick={() => editor.chain().focus().toggleTaskList().run()}
-            className={editor.isActive('taskList') ? 'is-active' : ''}
-            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('taskList') ? 'var(--primary)' : 'white', background: editor.isActive('taskList') ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            className={`bubble-btn ${editor.isActive('taskList') ? 'is-active' : ''}`}
           >
             <ListTodo size={16} />
           </button>
-          <div style={{ width: '1px', background: 'var(--border)', margin: '0.25rem' }}></div>
+          <div className="bubble-sep" />
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''}
-            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('heading', { level: 1 }) ? 'var(--primary)' : 'white', background: editor.isActive('heading', { level: 1 }) ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            className={`bubble-btn ${editor.isActive('heading', { level: 1 }) ? 'is-active' : ''}`}
           >
             <Heading1 size={16} />
           </button>
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}
-            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('heading', { level: 2 }) ? 'var(--primary)' : 'white', background: editor.isActive('heading', { level: 2 }) ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            className={`bubble-btn ${editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}`}
           >
             <Heading2 size={16} />
           </button>
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={editor.isActive('heading', { level: 3 }) ? 'is-active' : ''}
-            style={{ padding: '0.5rem', borderRadius: '50%', color: editor.isActive('heading', { level: 3 }) ? 'var(--primary)' : 'white', background: editor.isActive('heading', { level: 3 }) ? 'var(--surface-hover)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            className={`bubble-btn ${editor.isActive('heading', { level: 3 }) ? 'is-active' : ''}`}
           >
             <Heading3 size={16} />
           </button>
