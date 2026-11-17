@@ -18,6 +18,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import { usePendingEdits } from '../hooks/usePendingEdits';
 import { useTheme } from '../theme/useTheme';
 import { useDialogs } from '../components/dialogs/useDialogs';
+import { userColor } from '../lib/userColor';
 import { deleteKnowledgeBase } from '../lib/deleteKnowledgeBase';
 import './KbView.css';
 
@@ -161,7 +162,6 @@ export default function KbView() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recalcul voulu à chaque changement de thème
   }, [theme]);
-  const cursorColor = useMemo(() => '#' + Math.floor(Math.random()*16777215).toString(16), []);
   const isOwner = baseData?.ownerId === currentUser?.uid;
 
   // C'est ici que toute la magie de la synchronisation en temps réel opère !
@@ -552,8 +552,8 @@ export default function KbView() {
     setIsMobileSidebarOpen(false);
   }, []);
   const editorUser = useMemo(
-    () => ({ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: cursorColor }),
-    [currentUser?.email, cursorColor]
+    () => ({ name: currentUser?.email?.split('@')[0] || 'Anonyme', color: userColor(currentUser?.email) }),
+    [currentUser?.email]
   );
 
   if (baseData === null) {

@@ -25,6 +25,7 @@ const isLocalOrigin = (origin: unknown) => origin === ySyncPluginKey || origin i
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import Mention from '@tiptap/extension-mention';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
@@ -138,7 +139,7 @@ function TiptapEditor({ kbId, noteId, initialContent, legacyYjsState, onChange, 
   );
 }
 
-function EditorInner({ ydoc, noteId, hasState, flushRef, initialContent, onChange, allNotes, onNoteClick, }: any) {
+function EditorInner({ ydoc, provider, noteId, hasState, flushRef, initialContent, onChange, currentUser, allNotes, onNoteClick, }: any) {
   const notesRef = useRef(allNotes);
   const onChangeRef = useRef(onChange);
   const onNoteClickRef = useRef(onNoteClick);
@@ -161,6 +162,11 @@ function EditorInner({ ydoc, noteId, hasState, flushRef, initialContent, onChang
       Collaboration.configure({
         document: ydoc,
       }),
+      // Curseur et sélection des autres personnes sur la note, avec leur nom
+      CollaborationCaret.configure({
+        provider,
+        user: currentUser,
+      }),
       Placeholder.configure({
         placeholder: 'Écris ta note ici (tape @ pour lier une note)...',
       }),
@@ -170,7 +176,7 @@ function EditorInner({ ydoc, noteId, hasState, flushRef, initialContent, onChang
         },
         suggestion: getSuggestionConfig(notesRef),
       }),
-  ], [ydoc]);
+  ], [ydoc, provider, currentUser]);
 
   const editorProps = useMemo<EditorProps>(() => ({
     attributes: {
