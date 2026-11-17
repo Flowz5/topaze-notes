@@ -510,3 +510,16 @@ kbd {
     margin-bottom: 1.25rem;
   }
 }
+
+/* Mobile : iOS zoome automatiquement sur un champ dont le texte fait moins de 16px.
+   On garde donc 16px minimum sur les champs, plutôt que de bloquer le zoom
+   (user-scalable=no empêchait aussi de zoomer volontairement : mauvais pour l'accessibilité). */
+@media (max-width: 768px) {
+  .input,
+  .input-sm,
+  .home-input,
+  .prop-val,
+  .search-bar-input {
+    font-size: 16px;
+  }
+}
