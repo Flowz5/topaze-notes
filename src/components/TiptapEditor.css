@@ -281,6 +281,8 @@ ul[data-type="taskList"] li[data-checked="true"] > div {
 .tiptap-editor table {
   border-collapse: collapse;
   width: 100%;
+  /* 3 colonnes de 5rem minimum : en dessous, le conteneur défile au lieu d'écraser les colonnes */
+  min-width: 15rem;
   table-layout: fixed;
 }
 

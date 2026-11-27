@@ -160,7 +160,7 @@ function EditorInner({ ydoc, provider, noteId, hasState, flushRef, initialConten
       TaskItem.configure({
         nested: true,
       }),
-      TableKit.configure({ table: { resizable: false } }),
+      TableKit.configure({ table: { resizable: false, renderWrapper: true } }),
       TaskShortcuts,
       CodeBlockLowlight.configure({ lowlight }),
       Markdown,
