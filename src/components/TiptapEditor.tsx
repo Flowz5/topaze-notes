@@ -5,6 +5,7 @@ import { BubbleMenu } from '@tiptap/react/menus';
 import { Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, ListTodo } from 'lucide-react';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
+import { TableKit } from '@tiptap/extension-table';
 import StarterKit from '@tiptap/starter-kit';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { createLowlight, common } from 'lowlight';
@@ -31,6 +32,7 @@ import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import getSuggestionConfig from './mentionSuggestion';
 import { SlashCommands } from './slashCommands';
+import { TaskShortcuts } from './taskShortcuts';
 import { ySyncPluginKey } from '@tiptap/y-tiptap';
 import debounce from 'lodash/debounce';
 import { db } from '../firebase';
@@ -158,6 +160,8 @@ function EditorInner({ ydoc, provider, noteId, hasState, flushRef, initialConten
       TaskItem.configure({
         nested: true,
       }),
+      TableKit.configure({ table: { resizable: false } }),
+      TaskShortcuts,
       CodeBlockLowlight.configure({ lowlight }),
       Markdown,
       Collaboration.configure({

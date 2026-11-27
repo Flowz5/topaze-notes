@@ -271,3 +271,44 @@ ul[data-type="taskList"] li[data-checked="true"] > div {
   user-select: none;
   box-shadow: var(--shadow-sm);
 }
+
+/* Tableaux */
+.tiptap-editor .tableWrapper {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.tiptap-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.tiptap-editor th,
+.tiptap-editor td {
+  position: relative;
+  min-width: 5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  vertical-align: top;
+  text-align: left;
+}
+
+.tiptap-editor th {
+  background: var(--primary-soft);
+  font-weight: 700;
+}
+
+.tiptap-editor th p,
+.tiptap-editor td p {
+  margin: 0;
+}
+
+.tiptap-editor .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--primary-soft);
+  opacity: 0.6;
+  pointer-events: none;
+}

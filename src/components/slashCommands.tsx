@@ -5,7 +5,7 @@ import { ReactRenderer } from '@tiptap/react';
 import Suggestion from '@tiptap/suggestion';
 import tippy from 'tippy.js';
 import { forwardRef, useImperativeHandle, useState } from 'react';
-import { Code2, Heading1, Heading2, Heading3, ListTodo, List, Quote, Minus } from 'lucide-react';
+import { Code2, Heading1, Heading2, Heading3, ListTodo, List, Quote, Minus, Table } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import './SlashMenu.css';
 
@@ -17,6 +17,7 @@ export interface SlashItem {
 }
 
 export const SLASH_ITEMS: SlashItem[] = [
+  { id: 'tab', title: 'Tableau', icon: Table, run: (e, r) => e.chain().focus().deleteRange(r).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
   { id: 'code', title: 'Bloc de code', icon: Code2, run: (e, r) => e.chain().focus().deleteRange(r).setCodeBlock().run() },
   { id: 'h1', title: 'Titre 1', icon: Heading1, run: (e, r) => e.chain().focus().deleteRange(r).setHeading({ level: 1 }).run() },
   { id: 'h2', title: 'Titre 2', icon: Heading2, run: (e, r) => e.chain().focus().deleteRange(r).setHeading({ level: 2 }).run() },
