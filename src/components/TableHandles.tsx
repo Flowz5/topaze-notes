@@ -72,6 +72,9 @@ export function TableHandles({ editor }: { editor: Editor }) {
   // Cellule DOM survolée (pas une position du document, qui peut changer à tout moment)
   const cellRef = useRef<HTMLTableCellElement | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Souris sur un « + » : on ne cache pas. Nécessaire car React déclenche onMouseEnter du bouton
+  // AVANT le mouseleave natif de l'éditeur, qui relancerait sinon le minuteur juste après.
+  const overHandleRef = useRef(false);
 
   const cancelHide = useCallback(() => {
     if (hideTimerRef.current !== null) {
@@ -82,14 +85,28 @@ export function TableHandles({ editor }: { editor: Editor }) {
 
   const hide = useCallback(() => {
     cancelHide();
+    overHandleRef.current = false;
     cellRef.current = null;
     setPositions(null);
   }, [cancelHide]);
 
   const scheduleHide = useCallback(() => {
-    if (hideTimerRef.current !== null) return;
-    hideTimerRef.current = setTimeout(hide, HIDE_DELAY);
+    if (hideTimerRef.current !== null || overHandleRef.current) return;
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null;
+      if (!overHandleRef.current) hide();
+    }, HIDE_DELAY);
   }, [hide]);
+
+  const enterHandle = useCallback(() => {
+    overHandleRef.current = true;
+    cancelHide();
+  }, [cancelHide]);
+
+  const leaveHandle = useCallback(() => {
+    overHandleRef.current = false;
+    scheduleHide();
+  }, [scheduleHide]);
 
   useEffect(() => {
     if (!dom) return;
@@ -177,8 +194,8 @@ export function TableHandles({ editor }: { editor: Editor }) {
           title="Ajouter une colonne à droite"
           aria-label="Ajouter une colonne à droite"
           onMouseDown={(e) => e.preventDefault()}
-          onMouseEnter={cancelHide}
-          onMouseLeave={scheduleHide}
+          onMouseEnter={enterHandle}
+          onMouseLeave={leaveHandle}
           onClick={() => run('addColumnAfter')}
         >
           <Plus size={12} />
@@ -191,8 +208,8 @@ export function TableHandles({ editor }: { editor: Editor }) {
         title="Ajouter une ligne dessous"
         aria-label="Ajouter une ligne dessous"
         onMouseDown={(e) => e.preventDefault()}
-        onMouseEnter={cancelHide}
-        onMouseLeave={scheduleHide}
+        onMouseEnter={enterHandle}
+        onMouseLeave={leaveHandle}
         onClick={() => run('addRowAfter')}
       >
         <Plus size={12} />
