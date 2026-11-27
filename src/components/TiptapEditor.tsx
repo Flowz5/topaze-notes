@@ -30,6 +30,7 @@ import Mention from '@tiptap/extension-mention';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import getSuggestionConfig from './mentionSuggestion';
+import { SlashCommands } from './slashCommands';
 import { ySyncPluginKey } from '@tiptap/y-tiptap';
 import debounce from 'lodash/debounce';
 import { db } from '../firebase';
@@ -168,7 +169,7 @@ function EditorInner({ ydoc, provider, noteId, hasState, flushRef, initialConten
         user: currentUser,
       }),
       Placeholder.configure({
-        placeholder: 'Écris ta note ici (tape @ pour lier une note)...',
+        placeholder: 'Écris ta note ici (tape @ pour lier une note, / pour insérer un bloc)...',
       }),
       Mention.configure({
         HTMLAttributes: {
@@ -176,6 +177,7 @@ function EditorInner({ ydoc, provider, noteId, hasState, flushRef, initialConten
         },
         suggestion: getSuggestionConfig(notesRef),
       }),
+      SlashCommands,
   ], [ydoc, provider, currentUser]);
 
   const editorProps = useMemo<EditorProps>(() => ({

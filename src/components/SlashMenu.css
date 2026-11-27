@@ -1,0 +1,45 @@
+.slash-menu {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+  max-height: 320px;
+  font-size: 0.9rem;
+  min-width: 240px;
+}
+
+.slash-item {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.slash-item:hover,
+.slash-item.is-selected {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.slash-item-title {
+  flex: 1;
+}
+
+.slash-item-id {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
