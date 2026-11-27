@@ -33,6 +33,8 @@ import { WebrtcProvider } from 'y-webrtc';
 import getSuggestionConfig from './mentionSuggestion';
 import { SlashCommands } from './slashCommands';
 import { TaskShortcuts } from './taskShortcuts';
+import { TableHandles } from './TableHandles';
+import { TableMenu } from './TableMenu';
 import { ySyncPluginKey } from '@tiptap/y-tiptap';
 import debounce from 'lodash/debounce';
 import { db } from '../firebase';
@@ -309,6 +311,8 @@ function EditorInner({ ydoc, provider, noteId, hasState, flushRef, initialConten
         </BubbleMenu>
       )}
       <EditorContent editor={editor} />
+      {editor && <TableHandles editor={editor} />}
+      {editor && <TableMenu editor={editor} />}
     </div>
   );
 }
